@@ -1,44 +1,14 @@
 import re
 
 from dace.sdfg import graph
-
 from dace.properties import make_properties, SubsetProperty
-from dace import Memlet, subsets, memlet
+from dace import Memlet, subsets
 from dace import nodes, sdfg as sd
 from dace.transformation import transformation as xf
 
 
-def reroute_edge_through_map(state, sdfg: sd.SDFG, e: graph.Edge, m: nodes.Map):
-    def is_map_symbol(s):
-        return s in m.map.params
-
-    use_memlet_path = True
-    if isinstance(m, nodes.MapEntry):
-        data = e.src.data
-        if any(map(is_map_symbol, e.data.src_subset.free_symbols)):
-            use_memlet_path = False
-    else:
-        data = e.dst.data
-        if any(map(is_map_symbol, e.data.dst_subset.free_symbols)):
-            use_memlet_path = False
-
-    if use_memlet_path:
-        state.add_memlet_path(e.src, m, e.dst, src_conn=e.src_conn, dst_conn=e.dst_conn, memlet=e.data)
-    else:
-        connector_type = sdfg.arrays[data].dtype
-        in_connector_name = "IN_" + data
-        m.add_in_connector(in_connector_name, connector_type)
-        out_connector_name = "OUT_" + data
-        m.add_out_connector(out_connector_name, connector_type)
-        data_subset_str = "0:{}".format(sdfg.arrays[data].total_size)
-
-        if isinstance(m, nodes.MapEntry):
-            state.add_edge(e.src, e.src_conn, m, in_connector_name, memlet.Memlet(data=data, subset=data_subset_str))
-            state.add_edge(m, out_connector_name, e.dst, e.dst_conn, e.data)
-        else:
-            state.add_edge(e.src, e.src_conn, m, in_connector_name, e.data)
-            state.add_edge(m, out_connector_name, e.dst, e.dst_conn, memlet.Memlet(data=data, subset=data_subset_str))
-
+def reroute_edge_through_map(state, e: graph.Edge, m: nodes.Map):
+    state.add_memlet_path(e.src, m, e.dst, src_conn=e.src_conn, dst_conn=e.dst_conn, memlet=e.data)
     state.remove_edge(e)
 
 @make_properties
@@ -124,7 +94,7 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
             if n.data not in id_table.keys():
                 for e in self.compute_state.edges():
                     if e.src == n:
-                        reroute_edge_through_map(self.compute_state, sdfg, e, me)
+                        reroute_edge_through_map(self.compute_state, e, me)
 
         # search for sink nodes and corresponding edges
         for n in self.compute_state.sink_nodes():
@@ -132,7 +102,7 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
             if n.data not in id_table.keys():
                 for e in self.compute_state.edges():
                     if e.dst == n:
-                        reroute_edge_through_map(self.compute_state, sdfg, e, mx)
+                        reroute_edge_through_map(self.compute_state, e, mx)
 
         # removal of symbol state
         if len(self.symbol_edge.data.assignments) == 0 and len(self.symbol_state.nodes()) == 0:
