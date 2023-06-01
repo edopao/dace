@@ -85,8 +85,7 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
             self.compute_state.add_edge(access_node, None, me, connector_name, m)
             # update table of symbols in map range
             map.params.append(s)
-            map.range += subsets.Range(SubsetProperty.from_string(connector_name))            # TODO remove inter-state symbols
-            self.symbol_edge.data.assignments.pop(s)
+            map.range += subsets.Range(SubsetProperty.from_string(connector_name))
 
         # search for source nodes and corresponding edges
         for n in self.compute_state.source_nodes():
@@ -104,6 +103,12 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
                     if e.dst == n:
                         reroute_edge_through_map(self.compute_state, e, mx)
 
+        # remove symbol assignments from inter-state edge
+        for s in self.memlet_symbols.keys():
+            self.symbol_edge.data.assignments.pop(s)
+            if s in sdfg.symbols:
+                sdfg.remove_symbol(s)
+
         # removal of symbol state
         if len(self.symbol_edge.data.assignments) == 0 and len(self.symbol_state.nodes()) == 0:
-            graph.remove_node(self.symbol_state)
+            sdfg.remove_node(self.symbol_state)
