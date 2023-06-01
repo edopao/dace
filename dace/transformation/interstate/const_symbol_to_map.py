@@ -16,7 +16,7 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
     symbol_state = xf.PatternNode(sd.SDFGState)
     compute_state = xf.PatternNode(sd.SDFGState)
     symbol_edge = None
-    memlet_symbols = {}
+    map_symbols = {}
 
     @classmethod
     def expressions(cls):
@@ -51,8 +51,8 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
                 except SyntaxError:
                     continue
                 if m.subset != None and m.data in sdfg.arrays:
-                    self.memlet_symbols[k] = m
-        return len(self.memlet_symbols) != 0
+                    self.map_symbols[k] = m
+        return len(self.map_symbols) != 0
 
     def apply(self, graph, sdfg: sd.SDFG):
         map = nodes.Map(self.compute_state.label + "_map", [], [])
@@ -61,7 +61,7 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
 
         # replace inter-state symbols with map
         id_table = {}
-        for s, m in self.memlet_symbols.items():
+        for s, m in self.map_symbols.items():
             # check that symbol is not defined yet
             assert (s not in map.params)
             # create in-connector with unique id
@@ -104,11 +104,7 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
                         reroute_edge_through_map(self.compute_state, e, mx)
 
         # remove symbol assignments from inter-state edge
-        for s in self.memlet_symbols.keys():
+        for s in self.map_symbols.keys():
             self.symbol_edge.data.assignments.pop(s)
             if s in sdfg.symbols:
                 sdfg.remove_symbol(s)
-
-        # removal of symbol state
-        if len(self.symbol_edge.data.assignments) == 0 and len(self.symbol_state.nodes()) == 0:
-            sdfg.remove_node(self.symbol_state)
