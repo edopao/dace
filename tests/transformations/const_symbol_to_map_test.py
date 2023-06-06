@@ -37,11 +37,13 @@ def make_spmv_sdfg():
     A_val_node = body.add_access('A_val')
     x_node = body.add_access('x')
     y_node = body.add_access('y')
-    # Create transient nodes for temporary storage
-    x_slice_node = body.add_transient('x_slice', [N], dace.float64)
 
     # Create a map in which a tasklet will reside
     me, mx = body.add_map('indirect_x_slice', dict(__i0='__start:__stop'))
+
+    # Create transient nodes for temporary storage
+    x_slice_node = body.add_transient('x_slice', ('__stop - __start',), dace.float64)
+
     # Create tasklet for indirection of x values
     indirection_tasklet = body.add_tasklet('indirection', {'__arr', '__inp0'}, {'__out'}, '__out = __arr[__inp0]')
     # input path (src->me->tasklet[a])
@@ -63,7 +65,7 @@ def make_spmv_sdfg():
 
     return sdfg
 
-def make_sparse_matrx(M, N, nnz):
+def make_sparse_matrix(M, N, nnz):
     from numpy.random import default_rng
     rng = default_rng(42)
 
@@ -97,14 +99,19 @@ class TestConstSymbolToMap(unittest.TestCase):
 
     def test_const_symbol_to_map(self):
         sdfg = make_spmv_sdfg()
+        expected_arglist = ['A_col', 'A_row', 'A_val', 'x', 'y', 'M', 'N', 'nnz']
 
         num_transformations = sdfg.apply_transformations([LoopToMap])
         self.assertEqual(1, num_transformations)
         # run simplify to eliminate the exit state, so that the sink node can be detected
         sdfg.simplify()
 
+        # at this state, the loop body should be implemented as a nested sdfg
         self.assertEqual(1, len(sdfg.nodes()))
         self.assertEqual(['loop_body'], [n.label for n in sdfg.nodes()[0] if isinstance(n, nodes.NestedSDFG)])
+
+        # verify that symbols 'start' and 'stop' are not propagated out of map scope
+        self.assertEqual(expected_arglist, list(sdfg.arglist().keys()))
 
         num_transformations = sdfg.apply_transformations([ConstSymbolToMap])
         self.assertEqual(1, num_transformations)
@@ -114,11 +121,14 @@ class TestConstSymbolToMap(unittest.TestCase):
         self.assertEqual(1, len(sdfg.nodes()))
         self.assertEqual([], [n.label for n in sdfg.nodes()[0] if isinstance(n, nodes.NestedSDFG)])
 
+        # verify that symbols 'start' and 'stop' are not propagated out of map scope
+        self.assertEqual(expected_arglist, list(sdfg.arglist().keys()))
+
         M = np.uint32(4096)
         N = np.uint32(8192)
         nnz = np.uint32(2048)
 
-        A_row, A_col, A_val, x = make_sparse_matrx(M, N, nnz)
+        A_row, A_col, A_val, x = make_sparse_matrix(M, N, nnz)
         y = np.empty(M, dtype=x.dtype)
 
         sdfg(A_row=A_row, A_col=A_col, A_val=A_val, x=x, y=y, M=M, N=N, nnz=nnz)
