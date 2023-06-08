@@ -32,9 +32,6 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
     #   to be on the safe side, and ensure that the interstate symbols are not used anywhere else;
     #   the strict requirement would just be that the symbols are not modified, so they can be treated as constants.
     def can_be_applied(self, graph: sd.SDFGState, expr_index: int, sdfg: sd.SDFG, permissive: bool = False):
-        # For now put restriction that compute state is a sink node
-        if len(graph.out_edges(self.compute_state)) != 0:
-            return False
         # Find the edge that connects the symbol node to the compute node
         for e in graph.out_edges(self.symbol_state):
             if e.dst == self.compute_state:
@@ -52,7 +49,22 @@ class ConstSymbolToMap(xf.MultiStateTransformation):
                     continue
                 if m.subset != None and m.data in sdfg.arrays:
                     self.map_symbols[k] = m
-        return len(self.map_symbols) != 0
+        if len(self.map_symbols) == 0:
+            return False
+        # search through all other inter-state edges if the symbol appears in an assignment
+        for s in self.compute_state.parent.states():
+            if s == self.compute_state:
+                continue
+            for e in graph.in_edges(s):
+                for k, v in e.data.assignments.items():
+                    # if the symbol appears on left-hand side of an assignment
+                    if k in self.map_symbols.keys():
+                        return False
+            # for now limit to usage of this symbol in single state
+            for f in s.free_symbols:
+                if f in self.map_symbols.keys():
+                    return False
+        return True
 
     def apply(self, graph, sdfg: sd.SDFG):
         map = nodes.Map(self.compute_state.label + "_map", [], [])

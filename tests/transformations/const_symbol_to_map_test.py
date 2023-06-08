@@ -103,12 +103,6 @@ class TestConstSymbolToMap(unittest.TestCase):
 
         num_transformations = sdfg.apply_transformations([LoopToMap])
         self.assertEqual(1, num_transformations)
-        # run simplify to eliminate the exit state, so that the sink node can be detected
-        sdfg.simplify()
-
-        # at this state, the loop body should be implemented as a nested sdfg
-        self.assertEqual(1, len(sdfg.nodes()))
-        self.assertEqual(['loop_body'], [n.label for n in sdfg.nodes()[0] if isinstance(n, nodes.NestedSDFG)])
 
         # verify that symbols 'start' and 'stop' are not propagated out of map scope
         self.assertEqual(expected_arglist, list(sdfg.arglist().keys()))
