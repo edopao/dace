@@ -1115,7 +1115,11 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                 self._scope_has_collaborative_copy = True
                 accum = ''
                 custom_reduction = []
-                if memlet.wcr is not None:
+                if memlet.wcr is None:
+                    if dims == 1:
+                        # SharedToGlobal1D is a struct that provides functions for copy and reduction
+                        accum = '::Copy'
+                else:
                     redtype = operations.detect_reduction_type(memlet.wcr)
                     reduction_tmpl = ''
                     # Special call for detected reduction types
@@ -1148,7 +1152,7 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
                              args=', '.join([src_expr] + _topy(src_strides) + [dst_expr] + _topy(dst_strides) + custom_reduction)), sdfg,
                         state_id, [src_node, dst_node])
                 else:
-                    # reduction not yet supported by template for 1D and 2D case
+                    # reduction not yet supported by template for 2D and 3D case
                     if memlet.wcr is not None:
                         raise NotImplementedError(f'reduction not supported by template {funcname}')
                     callsite_stream.write(

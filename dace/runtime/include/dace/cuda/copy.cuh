@@ -689,7 +689,6 @@ namespace dace
                 ptr, 1, src_ystride, src_xstride, smem, 1, DST_YSTRIDE, DST_XSTRIDE, 1, COPY_YLEN, COPY_XLEN);
     }
 
-
     /*
     template <typename T, int BLOCK_WIDTH, int BLOCK_HEIGHT, int BLOCK_DEPTH,
         int COPY_XLEN, int DST_XSTRIDE,
@@ -736,12 +735,12 @@ namespace dace
         int COPY_XLEN, bool ASYNC>
     struct SharedToGlobal1D
     {
-        constexpr int BLOCK_SIZE = BLOCK_WIDTH * BLOCK_HEIGHT * BLOCK_DEPTH;
-        constexpr int TOTAL = COPY_XLEN;
-        constexpr int WRITES = TOTAL / BLOCK_SIZE;
-        constexpr int REM_WRITES = TOTAL % BLOCK_SIZE;
+        static constexpr int BLOCK_SIZE = BLOCK_WIDTH * BLOCK_HEIGHT * BLOCK_DEPTH;
+        static constexpr int TOTAL = COPY_XLEN;
+        static constexpr int WRITES = TOTAL / BLOCK_SIZE;
+        static constexpr int REM_WRITES = TOTAL % BLOCK_SIZE;
 
-        static DACE_DFI void operator()(const T *smem, int src_xstride, T *ptr, int dst_xstride)
+        static DACE_DFI void Copy(const T *smem, int src_xstride, T *ptr, int dst_xstride)
         {
            if (!ASYNC)
                 __syncthreads();
@@ -751,12 +750,12 @@ namespace dace
 
             #pragma unroll
             for (int i = 0; i < WRITES; ++i) {
-                ptr + (ltid + i * BLOCK_SIZE) * dst_xstride =
+                *(ptr + (ltid + i * BLOCK_SIZE) * dst_xstride) =
                     *(smem + (ltid + i * BLOCK_SIZE) * src_xstride);
             }
 
             if (REM_WRITES != 0 && ltid < REM_WRITES) {
-                ptr + (ltid + WRITES*BLOCK_SIZE)* dst_xstride =
+                *(ptr + (ltid + WRITES*BLOCK_SIZE)* dst_xstride) =
                     *(smem + (ltid + WRITES * BLOCK_SIZE) * src_xstride);
             }
         }
