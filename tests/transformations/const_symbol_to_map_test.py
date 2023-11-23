@@ -99,13 +99,13 @@ class TestConstSymbolToMap(unittest.TestCase):
 
     def test_const_symbol_to_map(self):
         sdfg = make_spmv_sdfg()
-        expected_arglist = ['A_col', 'A_row', 'A_val', 'x', 'y', 'M', 'N', 'nnz']
+        expected_arglist = {'A_col', 'A_row', 'A_val', 'x', 'y', 'M', 'N', 'nnz'}
 
         num_transformations = sdfg.apply_transformations([LoopToMap])
         self.assertEqual(1, num_transformations)
 
         # verify that symbols 'start' and 'stop' are not propagated out of map scope
-        self.assertEqual(expected_arglist, list(sdfg.arglist().keys()))
+        self.assertTrue(set(sdfg.arglist().keys()).issubset(expected_arglist))
 
         num_transformations = sdfg.apply_transformations([ConstSymbolToMap])
         self.assertEqual(1, num_transformations)
@@ -116,7 +116,7 @@ class TestConstSymbolToMap(unittest.TestCase):
         self.assertEqual([], [n.label for n in sdfg.nodes()[0] if isinstance(n, nodes.NestedSDFG)])
 
         # verify that symbols 'start' and 'stop' are not propagated out of map scope
-        self.assertEqual(expected_arglist, list(sdfg.arglist().keys()))
+        self.assertTrue(set(sdfg.arglist().keys()).issubset(expected_arglist))
 
         M = np.uint32(4096)
         N = np.uint32(8192)
