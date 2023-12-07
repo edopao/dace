@@ -93,13 +93,7 @@ def compare_numpy_output(non_zero=False,
 
             inputs = OrderedDict((name, get_rand_arr(param.annotation)) for name, param in signature.parameters.items())
 
-            if target_device == dace.dtypes.DeviceType.GPU:
-                import cupy as cp
-                dace_input = {k: cp.asarray(v) for k, v in inputs.items()}
-            else:
-                assert target_device == dace.dtypes.DeviceType.CPU
-                dace_input = dc(inputs)
-
+            dace_input = dc(inputs)
             if casting:
                 reference_input = OrderedDict((name, casting(desc)) for name, desc in inputs.items())
             else:
@@ -122,6 +116,13 @@ def compare_numpy_output(non_zero=False,
 
             try:
                 dace_result = dp(**dace_input)
+                if target_device == dace.dtypes.DeviceType.GPU:
+                    sdfg = dp.to_sdfg()
+                    sdfg.apply_gpu_transformations()
+                    dace_result = sdfg(**dace_input)
+                else:
+                    assert target_device == dace.dtypes.DeviceType.CPU
+                    dace_result = dp(**dace_input)
             except Exception as e:
                 dace_thrown = e
 
@@ -133,8 +134,6 @@ def compare_numpy_output(non_zero=False,
                     reference_result = [reference_result]
                     dace_result = [dace_result]
                     for ref, val in zip(reference_result, dace_result):
-                        if target_device == dace.dtypes.DeviceType.GPU:
-                            val = val.get()
                         if ref.dtype == np.float32:
                             assert np.allclose(ref, val, equal_nan=True, rtol=1e-3, atol=1e-5)
                         else:
