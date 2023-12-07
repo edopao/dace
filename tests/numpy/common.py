@@ -26,6 +26,8 @@ def compare_numpy_output(non_zero=False,
 
         Note that this should be used *instead* of the `@dace.program`
         annotation, not along with it!
+        Also note that this annotation requires a text fixture `target_device`
+        to generate the target `DeviceType` for test execution.
 
         :param non_zero: if `True`, replace `0` inputs with `1`.
         :param positive: if `False`, floats sample from [-10.0, 10.0], and ints
