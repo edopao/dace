@@ -40,8 +40,8 @@ def compare_numpy_output(non_zero=False,
         :param max_value: The maximum value allowed in the inputs.
     """
     def decorator(func):
-        def test():
-            dp = dace.program(func)
+        def test(target_device):
+            dp = dace.program(device=target_device)(func)
 
             def get_rand_arr(ddesc):
                 if type(ddesc) is dace.dtypes.typeclass:
@@ -93,7 +93,13 @@ def compare_numpy_output(non_zero=False,
 
             inputs = OrderedDict((name, get_rand_arr(param.annotation)) for name, param in signature.parameters.items())
 
-            dace_input = dc(inputs)
+            if target_device == dace.dtypes.DeviceType.GPU:
+                import cupy as cp
+                dace_input = {k: cp.asarray(v) for k, v in inputs.items()}
+            else:
+                assert target_device == dace.dtypes.DeviceType.CPU
+                dace_input = dc(inputs)
+
             if casting:
                 reference_input = OrderedDict((name, casting(desc)) for name, desc in inputs.items())
             else:
@@ -127,6 +133,8 @@ def compare_numpy_output(non_zero=False,
                     reference_result = [reference_result]
                     dace_result = [dace_result]
                     for ref, val in zip(reference_result, dace_result):
+                        if target_device == dace.dtypes.DeviceType.GPU:
+                            val = val.get()
                         if ref.dtype == np.float32:
                             assert np.allclose(ref, val, equal_nan=True, rtol=1e-3, atol=1e-5)
                         else:
