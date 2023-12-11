@@ -138,7 +138,6 @@ def compare_numpy_output(non_zero=False,
                 numpy_thrown = e
 
             try:
-                dace_result = dp(**dace_input)
                 if target_device == dace.dtypes.DeviceType.GPU:
                     sdfg = dp.to_sdfg()
                     sdfg.apply_gpu_transformations()
