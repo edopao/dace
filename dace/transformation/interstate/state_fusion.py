@@ -155,11 +155,15 @@ class StateFusion(transformation.MultiStateTransformation):
                     continue
                 path_found |= True
                 node2 = next(n for n in second_input if n.data == match.data)
-                if not all(
-                        second_state.in_degree(n) == 1 and nx.has_path(second_state._nx, node2, n)
-                        for n in nodes_second):
-                    fail = True
-                    break
+                for node_second in nodes_second:
+                    if not nx.has_path(second_state._nx, node2, node_second):
+                        fail = True
+                        break
+                    if second_state.in_degree(node_second) != 1:
+                        # TODO(edopao): refine this check, allow the case where all incoming
+                        #  edges have node2 or node_second data as source node.
+                        fail = True
+                        break
             # We keep looking for a potential match with a path that fail to find
             # a path to the second state to make sure we test memlet_intersections
             # independant of the order of the access nodes in the lists
