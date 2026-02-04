@@ -159,9 +159,7 @@ class StateFusion(transformation.MultiStateTransformation):
                     if not nx.has_path(second_state._nx, node2, node_second):
                         fail = True
                         break
-                    if second_state.in_degree(node_second) != 1:
-                        # TODO(edopao): refine this check, allow the case where all incoming
-                        #  edges have node2 or node_second data as source node.
+                    if second_state.in_degree(node_second) != 1:  # TODO(edopao): refine this check
                         fail = True
                         break
             # We keep looking for a potential match with a path that fail to find
