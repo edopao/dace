@@ -70,7 +70,7 @@ class MapFusionVertical(transformation.SingleStateTransformation):
     :param assume_always_shared: Handle all intermediate nodes as if they were classified as
         "shared", see `partition_first_outputs()` for more.
     :param require_exclusive_intermediates: If `True` then the transformation will only apply
-        if all intermediates are "eclusive", i.e., can be removed, see `partition_first_outputs()`.
+        if all intermediates are "exclusive", i.e., can be removed, see `partition_first_outputs()`.
     :param require_all_intermediates: If `True` then the transformation will only apply if
         all outputs of the first Map are intermediate, i.e., are consumed by the second Map.
     :param consolidate_edges_only_if_not_extending: If `True` the transformation will only
@@ -1549,11 +1549,15 @@ class MapFusionVertical(transformation.SingleStateTransformation):
         def next_nodes(node: nodes.Node) -> Iterable[nodes.Node]:
             return (edge.dst for edge in graph.out_edges(node))
 
-        # Dataflow graph is acyclic, so we do not need to keep a list of
-        #  what we have visited.
+        # Track visited nodes to avoid exponential blowup from visiting
+        # the same node multiple times via different paths in the DAG.
         to_visit: List[nodes.Node] = list(next_nodes(begin))
+        visited: Set[nodes.Node] = set()
         while len(to_visit) > 0:
             node = to_visit.pop()
+            if node in visited:
+                continue
+            visited.add(node)
             if isinstance(node, nodes.AccessNode) and node.data == data:
                 return True
             to_visit.extend(next_nodes(node))
