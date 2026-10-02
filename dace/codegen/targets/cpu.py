@@ -814,14 +814,11 @@ class CPUCodeGen(TargetCodeGenerator):
                     stream_expr = cpp.cpp_offset_expr(src_nodedesc, stream_subset)
                     array_expr = cpp.cpp_offset_expr(dst_nodedesc, array_subset)
                     assert functools.reduce(lambda a, b: a * b, src_nodedesc.shape, 1) == 1
-                    # Not ``num_elements()``: it uses the over-approximation of bounds such as the end of a partial
-                    #  tile, and the pop would then overrun the subset.
-                    maxsize = functools.reduce(lambda a, b: a * b, array_subset.size_exact(), 1)
                     stream.write(
                         "{s}.pop(&{arr}[{aexpr}], {maxsize});".format(s=self.ptr(src_node.data, src_nodedesc, sdfg),
                                                                       arr=self.ptr(dst_node.data, dst_nodedesc, sdfg),
                                                                       aexpr=array_expr,
-                                                                      maxsize=cpp.sym2cpp(maxsize)),
+                                                                      maxsize=cpp.sym2cpp(array_subset.num_elements())),
                         cfg,
                         state_id,
                         [src_node, dst_node],
@@ -847,7 +844,7 @@ class CPUCodeGen(TargetCodeGenerator):
                             [src_node, dst_node],
                         )
                     else:
-                        copysize = " * ".join([cpp.sym2cpp(s) for s in memlet.subset.size_exact()])
+                        copysize = " * ".join([cpp.sym2cpp(s) for s in memlet.subset.size()])
                         stream.write(
                             "{s}.push({arr}, {size});".format(s=self.ptr(dst_node.data, dst_nodedesc, sdfg),
                                                               arr=self.ptr(src_node.data, src_nodedesc, sdfg),
