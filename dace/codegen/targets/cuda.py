@@ -1088,8 +1088,6 @@ void __dace_alloc_{location}(uint32_t {size}, dace::GPUStream<{type}, {is_pow2}>
         ]
         gpu_storage_types = [dtypes.StorageType.GPU_Global, dtypes.StorageType.GPU_Shared]
 
-        copy_shape = memlet.subset.bounding_box_size()
-        copy_shape = [symbolic.overapproximate(s) for s in copy_shape]
         # Determine directionality
         if (isinstance(src_node, nodes.AccessNode) and memlet.data == src_node.data):
             outgoing_memlet = True

@@ -470,7 +470,9 @@ class ExpandReduceCUDADevice(pm.ExpandTransformation):
 
         # Obtain some SDFG-related information
         input_memlet = input_edge.data
-        reduce_shape = input_memlet.subset.bounding_box_size()
+        # The reduction runs on the exact size, not on the over-approximation of bounds such as the end of a partial
+        #  tile, which would overrun the subset. The over-approximation below only sizes the CUB workspace.
+        reduce_shape = input_memlet.subset.bounding_box_size_exact()
         num_items = ' * '.join(symstr(s) for s in reduce_shape)
         overapprox_memlet = dcpy(input_memlet)
         if any(

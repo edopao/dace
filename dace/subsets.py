@@ -447,14 +447,13 @@ class Range(Subset):
             for (iMin, iMax, step), ts in zip(self.ranges, self.tile_sizes)
         ]
 
-    def bounding_box_size_exact(self):
+    def bounding_box_size_exact(self) -> List[symbolic.SymbolicType]:
         """ Returns the size of a bounding box around this range, using the exact bounds instead of their
-            over-approximation (e.g., the end of a partial tile). """
-        return [
-            ts * ((iMax.expr if isinstance(iMax, symbolic.SymExpr) else iMax) -
-                  (iMin.expr if isinstance(iMin, symbolic.SymExpr) else iMin) + 1)
-            for (iMin, iMax, step), ts in zip(self.ranges, self.tile_sizes)
-        ]
+            over-approximation (e.g., the end of a partial tile).
+
+            :return: The size of the bounding box in each dimension.
+        """
+        return [ts * (_expr(iMax) - _expr(iMin) + 1) for (iMin, iMax, _), ts in zip(self.ranges, self.tile_sizes)]
 
     def min_element(self):
         return [_expr(x[0]) for x in self.ranges]

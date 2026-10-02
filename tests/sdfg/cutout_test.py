@@ -1,6 +1,8 @@
 # Copyright 2019-2022 ETH Zurich and the DaCe authors. All rights reserved.
 import numpy as np
+import sympy as sp
 import dace
+from dace import subsets, symbolic
 from dace.sdfg.analysis.cutout import SDFGCutout
 
 
@@ -191,6 +193,32 @@ def test_cutout_alibi_nodes():
     assert ('tmp5' in ct.arrays)
     assert ('tmp6' in ct.arrays)
     assert ('C' not in ct.arrays)
+
+
+def test_cutout_alibi_nodes_partial_tile():
+    """ The alibi container of a tiled subset is an array, even if the subset size is symbolic. """
+    sdfg = dace.SDFG('alibi_partial_tile')
+    N = dace.symbol('N')
+    tile_i = dace.symbol('tile_i')
+    sdfg.add_array('A', [N], dace.float64)
+    sdfg.add_array('B', [N], dace.float64)
+    state = sdfg.add_state()
+
+    map_entry, map_exit = state.add_map('tiles', dict(tile_i='0:N:5'))
+    tasklet = state.add_tasklet('t', {'a'}, {'b'}, 'b = a[0]')
+    tile = subsets.Range([(tile_i, symbolic.SymExpr(sp.Min(N - 1, tile_i + 4), tile_i + 4), 1)])
+    state.add_memlet_path(state.add_read('A'),
+                          map_entry,
+                          tasklet,
+                          dst_conn='a',
+                          memlet=dace.Memlet(data='A', subset=tile))
+    state.add_memlet_path(tasklet, map_exit, state.add_write('B'), src_conn='b', memlet=dace.Memlet('B[tile_i]'))
+
+    ct = SDFGCutout.singlestate_cutout(state, tasklet)
+
+    assert isinstance(ct.arrays['__cutout_A'], dace.data.Array)
+    assert ct.arrays['__cutout_A'].shape == tuple(tile.size_exact())
+    assert isinstance(ct.arrays['__cutout_B'], dace.data.Scalar)
 
 
 def test_multistate_cutout_simple_expand():
@@ -417,6 +445,7 @@ if __name__ == '__main__':
     test_cutout_implicit_array()
     test_cutout_init_map()
     test_cutout_alibi_nodes()
+    test_cutout_alibi_nodes_partial_tile()
     test_multistate_cutout_simple_expand()
     test_multistate_cutout_complex_expand()
     test_input_output_configuration()

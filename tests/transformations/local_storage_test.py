@@ -2,6 +2,7 @@
 import unittest
 import dace
 import numpy as np
+from dace import symbolic
 from dace.transformation.dataflow import MapTiling, OutLocalStorage
 from dace.transformation.dataflow.local_storage import InLocalStorage
 
@@ -221,6 +222,41 @@ def test_out_local_storage_implicit():
 
 
 @dace.program
+def copy_1d(A: dace.int32[N], B: dace.int32[N]):
+    for i in dace.map[0:N]:
+        with dace.tasklet:
+            a << A[i]
+            b >> B[i]
+            b = a
+
+
+def test_in_local_storage_uneven():
+    sdfg = copy_1d.to_sdfg(simplify=True)
+    sdfg.apply_transformations([MapTiling], options=[{'tile_sizes': [5]}])
+    outer_map_entry, inner_map_entry = find_map_entries(sdfg)
+    InLocalStorage.apply_to(sdfg=sdfg,
+                            node_a=outer_map_entry,
+                            node_b=inner_map_entry,
+                            options={
+                                'array': 'A',
+                                'create_array': True,
+                                'prefix': 'loc_'
+                            })
+
+    # On the last, partial tile, the copy into the local storage only covers the part of the tile inside ``A``.
+    state = sdfg.start_state
+    local_storage_node = next(n for n in state.data_nodes() if n.data == 'loc_A')
+    (copy_edge, ) = state.in_edges(local_storage_node)
+    local_subset = copy_edge.data.get_dst_subset(copy_edge, state)
+    assert symbolic.evaluate(local_subset.size_exact(), {'N': 16, 'tile_i': 15}) == [1]
+
+    A = np.arange(16, dtype=np.int32)
+    B = np.zeros(16, dtype=np.int32)
+    sdfg(A=A, B=B, N=16)
+    assert np.array_equal(A, B)
+
+
+@dace.program
 def arange():
     out = np.ndarray([N], np.int32)
     for i in dace.map[0:N]:
@@ -256,4 +292,5 @@ if __name__ == '__main__':
     test_in_local_storage_implicit()
     test_out_local_storage_explicit()
     test_out_local_storage_implicit()
+    test_in_local_storage_uneven()
     unittest.main()
