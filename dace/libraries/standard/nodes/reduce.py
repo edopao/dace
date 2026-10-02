@@ -92,10 +92,11 @@ class ExpandReducePure(pm.ExpandTransformation):
             nstate = nsdfg.add_state()
             nsdfg.add_edge(init_state, nstate, dace.InterstateEdge())
 
-            # Add initialization as a map
+            # Add initialization as a map. Here and below, the maps iterate over ``size_exact()``, not ``size()``: it
+            #  uses the over-approximation of bounds such as the end of a partial tile, which would overrun the subset.
             init_state.add_mapped_tasklet('reduce_init', {
                 '_o%d' % i: '0:%s' % symstr(d)
-                for i, d in enumerate(outedge.data.subset.size())
+                for i, d in enumerate(outedge.data.subset.size_exact())
             }, {},
                                           '__out = %s' % node.identity,
                                           {'__out': dace.Memlet.simple('_out', ','.join(['_o%d' % i for i in osqdim]))},
@@ -119,7 +120,7 @@ class ExpandReducePure(pm.ExpandTransformation):
 
             ome, omx = nstate.add_map('reduce_output', {
                 '_o%d' % i: '0:%s' % symstr(sz)
-                for i, sz in enumerate(outsubset.size())
+                for i, sz in enumerate(outsubset.size_exact())
             })
             outm = dace.Memlet.simple('_out', ','.join(['_o%d' % i for i in range(output_dims)]), wcr_str=node.wcr)
             inmm = dace.Memlet.simple('_in', ','.join(input_subset))
@@ -131,7 +132,7 @@ class ExpandReducePure(pm.ExpandTransformation):
         # Add inner map, which corresponds to the range to reduce, containing
         # an identity tasklet
         ime, imx = nstate.add_map('reduce_values', {
-            '_i%d' % i: '0:%s' % symstr(insubset.size()[isqdim.index(axis)])
+            '_i%d' % i: '0:%s' % symstr(insubset.size_exact()[isqdim.index(axis)])
             for i, axis in enumerate(sorted(axes))
         })
 
@@ -220,7 +221,7 @@ class ExpandReducePureSequentialDim(pm.ExpandTransformation):
 
         ome, omx = nstate.add_map('reduce_output', {
             '_o%d' % i: '0:%s' % symstr(sz)
-            for i, sz in enumerate(outsubset.size())
+            for i, sz in enumerate(outsubset.size_exact())
         })
         outm = dace.Memlet.simple('_out', ','.join(['_o%d' % i for i in range(output_dims)]))
         #wcr_str=node.wcr)
@@ -236,7 +237,7 @@ class ExpandReducePureSequentialDim(pm.ExpandTransformation):
         # Add inner map, which corresponds to the range to reduce, containing
         # an identity tasklet
         ime, imx = nstate.add_map('reduce_values', {
-            '_i%d' % i: '0:%s' % symstr(insubset.size()[isqdim.index(axis)])
+            '_i%d' % i: '0:%s' % symstr(insubset.size_exact()[isqdim.index(axis)])
             for i, axis in enumerate(sorted(axes))
         },
                                   schedule=dtypes.ScheduleType.Sequential)
@@ -329,7 +330,7 @@ class ExpandReduceOpenMP(pm.ExpandTransformation):
         # Output loops
         out_offset = []
         if outer_loops:
-            for i, sz in enumerate(outedge.data.subset.size()):
+            for i, sz in enumerate(outedge.data.subset.size_exact()):
                 code += 'for (int _o{i} = 0; _o{i} < {sz}; ++_o{i}) {{\n'.format(i=i, sz=sym2cpp(sz))
                 out_offset.append('_o%d * %s' % (i, sym2cpp(output_data.strides[i])))
         else:
@@ -348,7 +349,7 @@ class ExpandReduceOpenMP(pm.ExpandTransformation):
 
         # Reduction loops
         for i, axis in enumerate(sorted(axes)):
-            sz = sym2cpp(inedge.data.subset.size()[axis])
+            sz = sym2cpp(inedge.data.subset.size_exact()[axis])
             code += 'for (int _i{i} = 0; _i{i} < {sz}; ++_i{i}) {{\n'.format(i=i, sz=sz)
 
         # Prepare input offset expression

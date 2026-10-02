@@ -301,13 +301,15 @@ def memlet_to_map(
     src_subset = edge.data.get_src_subset(edge, state)
     if src_subset is None:
         src_subset = subsets.Range.from_array(adesc)
-    src_subset_size = src_subset.size()
+    # Not ``size()``: it uses the over-approximation of bounds such as the end of a partial tile, and the copy map
+    #  would then overrun the subset.
+    src_subset_size = src_subset.size_exact()
     red_src_subset_size = tuple(s for s in src_subset_size if s != 1)
 
     dst_subset = edge.data.get_dst_subset(edge, state)
     if dst_subset is None:
         dst_subset = subsets.Range.from_array(bdesc)
-    dst_subset_size = dst_subset.size()
+    dst_subset_size = dst_subset.size_exact()
     red_dst_subset_size = tuple(s for s in dst_subset_size if s != 1)
 
     if len(adesc.shape) >= len(bdesc.shape):

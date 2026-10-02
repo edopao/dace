@@ -407,7 +407,7 @@ class Range(Subset):
         return reduce(sp.Mul, self.size(), 1)
 
     def num_elements_exact(self):
-        return reduce(sp.Mul, self.bounding_box_size(), 1)
+        return reduce(sp.Mul, self.bounding_box_size_exact(), 1)
 
     def size(self, for_codegen=False):
         """ Returns the number of elements in each dimension. """
@@ -444,6 +444,15 @@ class Range(Subset):
             # sp.floor((iMax - iMin) / step) - iMin
             ts * ((iMax.approx if isinstance(iMax, symbolic.SymExpr) else iMax) -
                   (iMin.approx if isinstance(iMin, symbolic.SymExpr) else iMin) + 1)
+            for (iMin, iMax, step), ts in zip(self.ranges, self.tile_sizes)
+        ]
+
+    def bounding_box_size_exact(self):
+        """ Returns the size of a bounding box around this range, using the exact bounds instead of their
+            over-approximation (e.g., the end of a partial tile). """
+        return [
+            ts * ((iMax.expr if isinstance(iMax, symbolic.SymExpr) else iMax) -
+                  (iMin.expr if isinstance(iMin, symbolic.SymExpr) else iMin) + 1)
             for (iMin, iMax, step), ts in zip(self.ranges, self.tile_sizes)
         ]
 
