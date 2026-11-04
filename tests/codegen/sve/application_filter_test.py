@@ -1,14 +1,15 @@
-# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import dace
+# Copyright 2019-2026 ETH Zurich and the DaCe authors. All rights reserved.
 import numpy as np
-import tests.codegen.sve.common as common
 import pytest
 
-N = dace.symbol('N', positive=True)
+import dace
+from tests.codegen.sve import common
+
+N = dace.symbol("N", positive=True)
 
 
-@dace.program(dace.float32[N], dace.float32[N], dace.uint32[1], dace.float32)
-def pbf(A, out, outsz, ratio):
+@dace.program
+def pbf(A: dace.float32[N], out: dace.float32[N], outsz: dace.uint32[1], ratio: dace.float32):
     ostream = dace.define_stream(dace.float32, N)
 
     @dace.map(_[0:N])
@@ -34,7 +35,7 @@ def test_filter():
     N = 64
     ratio = np.float32(0.5)
 
-    print('Predicate-Based Filter. size=%d, ratio=%f' % (N, ratio))
+    print("Predicate-Based Filter. size=%d, ratio=%f" % (N, ratio))
 
     A = np.random.rand(N).astype(np.float32)
     B = np.zeros_like(A)
@@ -45,32 +46,36 @@ def test_filter():
 
     sdfg(A=A, out=B, outsz=outsize, ratio=ratio, N=N)
 
-    if dace.Config.get_bool('profiling'):
-        dace.timethis('filter', 'numpy', 0, regression, A, ratio)
+    if dace.Config.get_bool("profiling"):
+        dace.timethis("filter", "numpy", 0, regression, A, ratio)
 
     filtered = regression(A, ratio)
 
     if len(filtered) != outsize[0]:
         print("Difference in number of filtered items: %d (DaCe) vs. %d (numpy)" % (outsize[0], len(filtered)))
         totalitems = min(outsize[0], N)
-        print('DaCe:', B[:totalitems].view(type=np.ndarray))
-        print('Regression:', filtered.view(type=np.ndarray))
+        print("DaCe:", B[:totalitems].view(type=np.ndarray))
+        print("Regression:", filtered.view(type=np.ndarray))
         exit(1)
 
     # Sort the outputs
     filtered = np.sort(filtered)
-    B[:outsize[0]] = np.sort(B[:outsize[0]])
+    B[: outsize[0]] = np.sort(B[: outsize[0]])
 
     if len(filtered) == 0:
         print("==== Program end ====")
         exit(0)
 
-    diff = np.linalg.norm(filtered - B[:outsize[0]]) / float(outsize[0])
+    diff = np.linalg.norm(filtered - B[: outsize[0]]) / float(outsize[0])
     print("Difference:", diff)
     if diff > 1e-5:
         totalitems = min(outsize[0], N)
-        print('DaCe:', B[:totalitems].view(type=np.ndarray))
-        print('Regression:', filtered.view(type=np.ndarray))
+        print("DaCe:", B[:totalitems].view(type=np.ndarray))
+        print("Regression:", filtered.view(type=np.ndarray))
 
     print("==== Program end ====")
     assert diff <= 1e-5
+
+
+if __name__ == "__main__":
+    test_filter()

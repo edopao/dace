@@ -1,16 +1,16 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import dace
 import numpy as np
+import pytest
 import scipy as sp
 
-import tests.codegen.sve.common as common
-import pytest
+import dace
+from tests.codegen.sve import common
 
-N = dace.symbol('N')
+N = dace.symbol("N")
 
 
-@dace.program(dace.float64, dace.float64[N], dace.float64[N])
-def axpy(A, X, Y):
+@dace.program
+def axpy(A: dace.float64, X: dace.float64[N], Y: dace.float64[N]):
 
     @dace.map(_[0:N])
     def multiplication(i):
@@ -28,7 +28,7 @@ def test_axpy():
 
     N = 24
 
-    print('Scalar-vector multiplication %d' % (N))
+    print("Scalar-vector multiplication %d" % (N))
 
     # Initialize arrays: Randomize A and X, zero Y
     A = dace.float64(np.random.rand())
@@ -46,9 +46,9 @@ def test_axpy():
 
     sdfg(A=A, X=X, Y=Y, N=N)
 
-    c_axpy = sp.linalg.blas.get_blas_funcs('axpy', arrays=(X_regression, Y_regression))
-    if dace.Config.get_bool('profiling'):
-        dace.timethis('axpy', 'BLAS', (2 * N), c_axpy, X_regression, Y_regression, N, A_regression)
+    c_axpy = sp.linalg.blas.get_blas_funcs("axpy", arrays=(X_regression, Y_regression))
+    if dace.Config.get_bool("profiling"):
+        dace.timethis("axpy", "BLAS", (2 * N), c_axpy, X_regression, Y_regression, N, A_regression)
     else:
         c_axpy(X_regression, Y_regression, N, A_regression)
 

@@ -1,57 +1,55 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import dace
-from dace.sdfg import nodes
-from dace.transformation.dataflow import TrivialMapElimination
 import unittest
+
+import networkx as nx
+
+import dace
+from dace.transformation.dataflow import TrivialMapElimination
 
 
 def trivial_map_sdfg():
-    sdfg = dace.SDFG('trivial_map')
-    sdfg.add_array('A', [5], dace.float64)
-    sdfg.add_array('B', [5], dace.float64)
+    sdfg = dace.SDFG("trivial_map")
+    sdfg.add_array("A", [5], dace.float64)
+    sdfg.add_array("B", [5], dace.float64)
     state = sdfg.add_state()
 
     # Nodes
-    read = state.add_read('A')
-    map_entry, map_exit = state.add_map('map', dict(i='0:1'))
-    tasklet = state.add_tasklet('tasklet', {'a'}, {'b'}, 'b = a')
-    write = state.add_write('B')
+    read = state.add_read("A")
+    map_entry, map_exit = state.add_map("map", dict(i="0:1"))
+    tasklet = state.add_tasklet("tasklet", {"a"}, {"b"}, "b = a")
+    write = state.add_write("B")
 
     # Edges
-    state.add_memlet_path(read, map_entry, tasklet, memlet=dace.Memlet.simple('A', '0'), dst_conn='a')
-    state.add_memlet_path(tasklet, map_exit, write, memlet=dace.Memlet.simple('B', 'i'), src_conn='b')
+    state.add_memlet_path(read, map_entry, tasklet, memlet=dace.Memlet.simple("A", "0"), dst_conn="a")
+    state.add_memlet_path(tasklet, map_exit, write, memlet=dace.Memlet.simple("B", "i"), src_conn="b")
 
     sdfg.validate()
     return sdfg
 
 
 def trivial_map_init_sdfg():
-    sdfg = dace.SDFG('trivial_map_range_expanded')
-    sdfg.add_array('B', [5, 1], dace.float64)
+    sdfg = dace.SDFG("trivial_map_range_expanded")
+    sdfg.add_array("B", [5, 1], dace.float64)
     state = sdfg.add_state()
 
     # Nodes
-    map_entry_outer, map_exit_outer = state.add_map('map_outer', dict(j='0:5'))
-    map_entry_inner, map_exit_inner = state.add_map('map_inner', dict(i='0:1'))
+    map_entry_outer, map_exit_outer = state.add_map("map_outer", dict(j="0:5"))
+    map_entry_inner, map_exit_inner = state.add_map("map_inner", dict(i="0:1"))
 
-    tasklet = state.add_tasklet('tasklet', {}, {'b'}, 'b = 1')
-    write = state.add_write('B')
+    tasklet = state.add_tasklet("tasklet", {}, {"b"}, "b = 1")
+    write = state.add_write("B")
 
     # Edges
     state.add_memlet_path(map_entry_outer, map_entry_inner, memlet=dace.Memlet())
     state.add_memlet_path(map_entry_inner, tasklet, memlet=dace.Memlet())
 
-    state.add_memlet_path(tasklet,
-                          map_exit_inner,
-                          memlet=dace.Memlet.simple('B', 'j, i'),
-                          src_conn='b',
-                          dst_conn='IN_B')
-    state.add_memlet_path(map_exit_inner,
-                          map_exit_outer,
-                          memlet=dace.Memlet.simple('B', 'j, 0'),
-                          src_conn='OUT_B',
-                          dst_conn='IN_B')
-    state.add_memlet_path(map_exit_outer, write, memlet=dace.Memlet.simple('B', '0:5, 0'), src_conn='OUT_B')
+    state.add_memlet_path(
+        tasklet, map_exit_inner, memlet=dace.Memlet.simple("B", "j, i"), src_conn="b", dst_conn="IN_B"
+    )
+    state.add_memlet_path(
+        map_exit_inner, map_exit_outer, memlet=dace.Memlet.simple("B", "j, 0"), src_conn="OUT_B", dst_conn="IN_B"
+    )
+    state.add_memlet_path(map_exit_outer, write, memlet=dace.Memlet.simple("B", "0:5, 0"), src_conn="OUT_B")
 
     sdfg.validate()
     return sdfg
@@ -89,44 +87,36 @@ def trivial_map_with_dynamic_map_range_sdfg():
 
 
 def trivial_map_pseudo_init_sdfg():
-    sdfg = dace.SDFG('trivial_map_range_expanded')
-    sdfg.add_array('A', [5, 1], dace.float64)
-    sdfg.add_array('B', [5, 1], dace.float64)
+    sdfg = dace.SDFG("trivial_map_range_expanded")
+    sdfg.add_array("A", [5, 1], dace.float64)
+    sdfg.add_array("B", [5, 1], dace.float64)
     state = sdfg.add_state()
 
     # Nodes
-    map_entry_outer, map_exit_outer = state.add_map('map_outer', dict(j='0:5'))
-    map_entry_inner, map_exit_inner = state.add_map('map_inner', dict(i='0:1'))
+    map_entry_outer, map_exit_outer = state.add_map("map_outer", dict(j="0:5"))
+    map_entry_inner, map_exit_inner = state.add_map("map_inner", dict(i="0:1"))
 
-    read = state.add_read('A')
-    tasklet = state.add_tasklet('tasklet', {'a'}, {'b'}, 'b = a')
-    write = state.add_write('B')
+    read = state.add_read("A")
+    tasklet = state.add_tasklet("tasklet", {"a"}, {"b"}, "b = a")
+    write = state.add_write("B")
 
     # Edges
     state.add_memlet_path(map_entry_outer, map_entry_inner, memlet=dace.Memlet())
-    state.add_memlet_path(read,
-                          map_entry_outer,
-                          map_entry_inner,
-                          memlet=dace.Memlet.simple('A', '0:5, 0'),
-                          dst_conn='IN_A')
+    state.add_memlet_path(
+        read, map_entry_outer, map_entry_inner, memlet=dace.Memlet.simple("A", "0:5, 0"), dst_conn="IN_A"
+    )
     state.add_memlet_path(map_entry_inner, tasklet, memlet=dace.Memlet())
-    state.add_memlet_path(map_entry_inner,
-                          tasklet,
-                          memlet=dace.Memlet.simple('A', 'j, 0'),
-                          src_conn='OUT_A',
-                          dst_conn='a')
+    state.add_memlet_path(
+        map_entry_inner, tasklet, memlet=dace.Memlet.simple("A", "j, 0"), src_conn="OUT_A", dst_conn="a"
+    )
 
-    state.add_memlet_path(tasklet,
-                          map_exit_inner,
-                          memlet=dace.Memlet.simple('B', 'j, i'),
-                          src_conn='b',
-                          dst_conn='IN_B')
-    state.add_memlet_path(map_exit_inner,
-                          map_exit_outer,
-                          memlet=dace.Memlet.simple('B', 'j, 0'),
-                          src_conn='OUT_B',
-                          dst_conn='IN_B')
-    state.add_memlet_path(map_exit_outer, write, memlet=dace.Memlet.simple('B', '0:5, 0'), src_conn='OUT_B')
+    state.add_memlet_path(
+        tasklet, map_exit_inner, memlet=dace.Memlet.simple("B", "j, i"), src_conn="b", dst_conn="IN_B"
+    )
+    state.add_memlet_path(
+        map_exit_inner, map_exit_outer, memlet=dace.Memlet.simple("B", "j, 0"), src_conn="OUT_B", dst_conn="IN_B"
+    )
+    state.add_memlet_path(map_exit_outer, write, memlet=dace.Memlet.simple("B", "0:5, 0"), src_conn="OUT_B")
 
     sdfg.validate()
     return sdfg
@@ -162,13 +152,12 @@ class TrivialMapEliminationTest(unittest.TestCase):
         graph.apply_transformations(TrivialMapElimination)
 
         state = graph.nodes()[0]
-        B = [n for n in state.nodes() if isinstance(n, dace.sdfg.nodes.AccessNode) and n.data == 'B'][0]
+        B = [n for n in state.nodes() if isinstance(n, dace.sdfg.nodes.AccessNode) and n.data == "B"][0]
         out_memlet = state.in_edges(B)[0]
         self.assertEqual(out_memlet.data.subset, dace.subsets.Range([(0, 0, 1)]))
 
 
 class TrivialMapInitEliminationTest(unittest.TestCase):
-
     def test_can_be_applied(self):
         graph = trivial_map_init_sdfg()
 
@@ -273,5 +262,99 @@ class TrivialMapEliminationWithDynamicMapRangesTest(unittest.TestCase):
         self.assertEqual(count2, 0)
 
 
-if __name__ == '__main__':
+def test_an_ordering_edge_into_the_removed_map_still_orders_its_body():
+    """``t0 -> A -(empty)-> map[i=0] { t1 -> A }``: the empty edge is all that orders the two writes of ``A``."""
+    sdfg = dace.SDFG("ordering_into_entry")
+    sdfg.add_array("A", [1], dace.float64)
+    state = sdfg.add_state()
+    first = state.add_access("A")
+    t0 = state.add_tasklet("t0", {}, {"o"}, "o = 1")
+    state.add_edge(t0, "o", first, None, dace.Memlet("A[0]"))
+    me, mx = state.add_map("trivial", {"i": "0:1"})
+    t1 = state.add_tasklet("t1", {}, {"o"}, "o = 2")
+    state.add_edge(first, None, me, None, dace.Memlet())
+    state.add_edge(me, None, t1, None, dace.Memlet())
+    state.add_memlet_path(t1, mx, state.add_access("A"), src_conn="o", memlet=dace.Memlet("A[0]"))
+    sdfg.validate()
+
+    assert sdfg.apply_transformations(TrivialMapElimination) == 1
+    sdfg.validate()
+    assert nx.has_path(state.nx, first, t1)
+
+
+def test_a_body_node_the_entry_reaches_only_by_an_ordering_edge_stays_after_the_inputs():
+    """``P -> C; C -(empty)-> B -> map[i=0] { B -> t1; (empty) -> t2 -> C }``: ``t2`` overwrites ``C`` and only the
+    map ordered it after ``P``."""
+    sdfg = dace.SDFG("ordering_out_of_entry")
+    for name in "BCD":
+        sdfg.add_array(name, [1], dace.float64)
+    state = sdfg.add_state()
+    c_first = state.add_access("C")
+    p = state.add_tasklet("p", {}, {"o"}, "o = 1")
+    state.add_edge(p, "o", c_first, None, dace.Memlet("C[0]"))
+    b = state.add_access("B")
+    state.add_edge(c_first, None, b, None, dace.Memlet())
+    me, mx = state.add_map("trivial", {"i": "0:1"})
+    t1 = state.add_tasklet("t1", {"x"}, {"y"}, "y = x")
+    state.add_memlet_path(b, me, t1, dst_conn="x", memlet=dace.Memlet("B[0]"))
+    state.add_memlet_path(t1, mx, state.add_access("D"), src_conn="y", memlet=dace.Memlet("D[0]"))
+    t2 = state.add_tasklet("t2", {}, {"o"}, "o = 2")
+    state.add_edge(me, None, t2, None, dace.Memlet())
+    state.add_memlet_path(t2, mx, state.add_access("C"), src_conn="o", memlet=dace.Memlet("C[0]"))
+    sdfg.validate()
+
+    assert sdfg.apply_transformations(TrivialMapElimination) == 1
+    sdfg.validate()
+    assert nx.has_path(state.nx, c_first, t2)
+
+
+def test_an_ordering_edge_out_of_the_removed_map_still_orders_its_body():
+    """``map[i=0] { A -> t1 -> D } -(empty)-> t3 -> A``: ``t3`` overwrites what ``t1`` reads, ordered by the exit."""
+    sdfg = dace.SDFG("ordering_out_of_exit")
+    for name in "AD":
+        sdfg.add_array(name, [1], dace.float64)
+    state = sdfg.add_state()
+    me, mx = state.add_map("trivial", {"i": "0:1"})
+    t1 = state.add_tasklet("t1", {"x"}, {"y"}, "y = x")
+    state.add_memlet_path(state.add_access("A"), me, t1, dst_conn="x", memlet=dace.Memlet("A[0]"))
+    state.add_memlet_path(t1, mx, state.add_access("D"), src_conn="y", memlet=dace.Memlet("D[0]"))
+    t3 = state.add_tasklet("t3", {}, {"o"}, "o = 3")
+    state.add_edge(mx, None, t3, None, dace.Memlet())
+    state.add_edge(t3, "o", state.add_access("A"), None, dace.Memlet("A[0]"))
+    sdfg.validate()
+
+    assert sdfg.apply_transformations(TrivialMapElimination) == 1
+    sdfg.validate()
+    assert nx.has_path(state.nx, t1, t3)
+
+
+def test_the_order_reaches_a_nested_scope_at_its_entry():
+    """The removed map's body is a nested map: its order attaches to the nested entry, never inside the scope."""
+    sdfg = dace.SDFG("ordering_nested_scope")
+    sdfg.add_array("A", [4], dace.float64)
+    state = sdfg.add_state()
+    first = state.add_access("A")
+    t0 = state.add_tasklet("t0", {}, {"o"}, "o = 1")
+    state.add_edge(t0, "o", first, None, dace.Memlet("A[0]"))
+    me, mx = state.add_map("trivial", {"i": "0:1"})
+    ie, ix = state.add_map("inner", {"j": "0:4"})
+    t1 = state.add_tasklet("t1", {}, {"o"}, "o = 2")
+    state.add_edge(first, None, me, None, dace.Memlet())
+    state.add_edge(me, None, ie, None, dace.Memlet())
+    state.add_edge(ie, None, t1, None, dace.Memlet())
+    state.add_memlet_path(t1, ix, mx, state.add_access("A"), src_conn="o", memlet=dace.Memlet("A[j]"))
+    sdfg.validate()
+
+    assert sdfg.apply_transformations(TrivialMapElimination) == 1
+    sdfg.validate()
+    assert nx.has_path(state.nx, first, t1)
+    assert state.scope_dict()[t1] is ie
+    assert all(e.src is ie for e in state.in_edges(t1))
+
+
+if __name__ == "__main__":
+    test_an_ordering_edge_into_the_removed_map_still_orders_its_body()
+    test_a_body_node_the_entry_reaches_only_by_an_ordering_edge_stays_after_the_inputs()
+    test_an_ordering_edge_out_of_the_removed_map_still_orders_its_body()
+    test_the_order_reaches_a_nested_scope_at_its_entry()
     unittest.main()

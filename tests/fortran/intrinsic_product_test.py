@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from dace.frontend.fortran import ast_transforms, fortran_parser
+from dace.frontend.fortran import fortran_parser
 
 
 def test_fortran_frontend_product_array():
@@ -114,7 +114,6 @@ def test_fortran_frontend_product_2d():
 
 
 if __name__ == "__main__":
-
     test_fortran_frontend_product_array()
     test_fortran_frontend_product_array_dim()
     test_fortran_frontend_product_2d()

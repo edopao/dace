@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from dace.frontend.fortran import ast_transforms, fortran_parser
+from dace.frontend.fortran import fortran_parser
 
 
 def test_fortran_frontend_merge_1d():
@@ -278,7 +278,6 @@ def test_fortran_frontend_merge_array_shift():
 
 
 if __name__ == "__main__":
-
     test_fortran_frontend_merge_1d()
     test_fortran_frontend_merge_comparison_scalar()
     test_fortran_frontend_merge_comparison_arrays()

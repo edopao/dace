@@ -4,7 +4,10 @@
 
 // Necessary headers
 #include <cstdio>
+#include <cstdint>
 #include <cmath>
+#include <new>  // std::align_val_t (aligned heap-array allocation)
+#include <type_traits>  // std::is_trivially_destructible (aligned deallocation guard)
 #include <numeric>
 #include <tuple>
 #include <cstring>
@@ -19,6 +22,7 @@
 #include "pyinterop.h"
 #include "reduction.h"
 #include "copy.h"
+#include "alloc.h"
 #include "stream.h"
 #include "os.h"
 #include "perf/reporting.h"

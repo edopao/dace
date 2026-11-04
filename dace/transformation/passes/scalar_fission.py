@@ -1,10 +1,12 @@
 # Copyright 2019-2024 ETH Zurich and the DaCe authors. All rights reserved.
 from collections import defaultdict
-from typing import Any, Dict, Optional, Set
+from typing import Any
 
 from dace import SDFG, InterstateEdge
 from dace.sdfg import nodes as nd
-from dace.transformation import pass_pipeline as ppl, transformation
+from dace.sdfg.state import ConditionalBlock
+from dace.transformation import pass_pipeline as ppl
+from dace.transformation import transformation
 from dace.transformation.passes import analysis as ap
 
 
@@ -14,7 +16,7 @@ class ScalarFission(ppl.Pass):
     Fission transient scalars or arrays of size 1 that are dominated by a write into separate data containers.
     """
 
-    CATEGORY: str = 'Optimization Preparation'
+    CATEGORY: str = "Optimization Preparation"
 
     def modifies(self) -> ppl.Modifies:
         return ppl.Modifies.Descriptors | ppl.Modifies.AccessNodes
@@ -23,9 +25,9 @@ class ScalarFission(ppl.Pass):
         return modified & ppl.Modifies.AccessNodes
 
     def depends_on(self):
-        return {ap.ScalarWriteShadowScopes}
+        return [ap.ScalarWriteShadowScopes]
 
-    def apply_pass(self, sdfg: SDFG, pipeline_results: Dict[str, Any]) -> Optional[Dict[str, Set[str]]]:
+    def apply_pass(self, sdfg: SDFG, pipeline_results: dict[str, Any]) -> dict[str, set[str]] | None:
         """
         Rename scalars and arrays of size 1 based on dominated scopes.
 
@@ -35,7 +37,7 @@ class ScalarFission(ppl.Pass):
                                  pipeline, an empty dictionary is expected.
         :return: A dictionary mapping the original name to a set of all new names created for each data container.
         """
-        results: Dict[str, Set[str]] = defaultdict(lambda: set())
+        results: dict[str, set[str]] = defaultdict(lambda: set())
 
         shadow_scope_dict: ap.WriteScopeDict = pipeline_results[ap.ScalarWriteShadowScopes.__name__][sdfg.cfg_id]
 
@@ -54,19 +56,35 @@ class ScalarFission(ppl.Pass):
             if not desc.transient:
                 continue
 
+            # Versioning gives each access ONE name, so an access in two scopes (a read after a
+            # conditional whose branches write in nested loops, which the analysis cannot merge into
+            # one scope) would read only one branch's version. Leave such a container whole.
+            seen: set[int] = set()
+            overlapping = False
+            for accesses in write_scope_dict.values():
+                for _block, access in accesses:
+                    overlapping |= id(access) in seen
+                    seen.add(id(access))
+            if overlapping:
+                continue
+
             for write, shadowed_reads in write_scope_dict.items():
                 if write is not None and len(shadowed_reads) > 0:
                     newdesc = desc.clone()
+                    # Versions already minted for ``name`` count as the container too: a node renamed
+                    # twice in one pass no longer carries the ORIGINAL name on its memlets, and a guard
+                    # comparing only against that name leaves them naming neither endpoint.
+                    aliases = {name} | set(results[name])
                     newname = sdfg.add_datadesc(name, newdesc, find_new_name=True)
 
                     # Replace the write and any connected memlets with writes to the new data container.
                     write_node = write[1]
                     write_node.data = newname
                     for iedge in write[0].in_edges(write_node):
-                        if iedge.data.data == name:
+                        if iedge.data.data in aliases:
                             iedge.data.data = newname
                     for oeade in write[0].out_edges(write_node):
-                        if oeade.data.data == name:
+                        if oeade.data.data in aliases:
                             oeade.data.data = newname
 
                     # Replace all dominated reads and connected memlets.
@@ -75,16 +93,18 @@ class ScalarFission(ppl.Pass):
                             read_node = read[1]
                             read_node.data = newname
                             for iedge in read[0].in_edges(read_node):
-                                if iedge.data.data == name:
+                                if iedge.data.data in aliases:
                                     iedge.data.data = newname
                             for oeade in read[0].out_edges(read_node):
-                                if oeade.data.data == name:
+                                if oeade.data.data in aliases:
                                     oeade.data.data = newname
                         elif isinstance(read[1], InterstateEdge):
                             read[1].replace_dict({name: newname})
+                        elif isinstance(read[1], ConditionalBlock):
+                            read[1].replace_meta_accesses({name: newname})
 
                     results[name].add(newname)
         return results
 
-    def report(self, pass_retval: Any) -> Optional[str]:
-        return f'Renamed {len(pass_retval)} scalars: {pass_retval}.'
+    def report(self, pass_retval: Any) -> str | None:
+        return f"Renamed {len(pass_retval)} scalars: {pass_retval}."

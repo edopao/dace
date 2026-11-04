@@ -1,19 +1,19 @@
-# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-from dace.codegen.targets.sve.util import NotSupportedError
+# Copyright 2019-2026 ETH Zurich and the DaCe authors. All rights reserved.
+import pytest
+
 import dace
 import dace.dtypes
+from dace.codegen.targets.sve.util import NotSupportedError
 from tests.codegen.sve.common import get_code
-import pytest
-from dace.codegen.targets.sve.type_compatibility import IncompatibleTypeError
 
-N = dace.symbol('N')
-M = dace.symbol('M')
+N = dace.symbol("N")
+M = dace.symbol("M")
 
 
 def test_assign_scalar():
 
-    @dace.program(dace.float32[N], dace.float32[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float32[N], B: dace.float32[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -23,14 +23,14 @@ def test_assign_scalar():
     code = get_code(program)
 
     # Scalar must be duplicated and brought into right type
-    assert 'svdup_f32' in code
-    assert f'({dace.float32})' in code
+    assert "svdup_f32" in code
+    assert f"({dace.float32})" in code
 
 
 def test_assign_pointer():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[:]
@@ -42,10 +42,26 @@ def test_assign_pointer():
         get_code(program)
 
 
+def test_a_scalar_python_modulo_lowers_to_py_mod():
+
+    @dace.program
+    def program(A: dace.int32[N], B: dace.int32[N]):
+        for i in dace.map[0:N]:
+            with dace.tasklet:
+                a << A[i]
+                b >> B[i]
+                b = a + (M % 4)
+
+    code = get_code(program)
+
+    assert "py_mod(" in code
+    assert "PyMod" not in code
+
+
 def test_compare_scalar_vector():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -54,13 +70,13 @@ def test_compare_scalar_vector():
 
     code = get_code(program)
 
-    assert 'svcmplt' in code
+    assert "svcmplt" in code
 
 
 def test_if_block():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -73,13 +89,13 @@ def test_if_block():
     code = get_code(program)
 
     # Accumulator must be used for predicates
-    assert '__pg_acc' in code
+    assert "__pg_acc" in code
 
 
 def test_assign_new_variable():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -93,14 +109,14 @@ def test_assign_new_variable():
     code = get_code(program)
 
     # c will be once defined as vector, once as scalar (locally)
-    assert 'svfloat64_t c = ' in code
-    assert f'{dace.int64} c = ' in code
+    assert "svfloat64_t c = " in code
+    assert f"{dace.int64} c = " in code
 
 
 def test_math_functions():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -112,19 +128,19 @@ def test_math_functions():
     code = get_code(program)
 
     # Vectorized max
-    assert 'svmax' in code
+    assert "svmax" in code
     # Vectorized sqrt
-    assert 'svsqrt' in code
+    assert "svsqrt" in code
     # Regular max (on scalars)
-    assert 'dace::math::max' in code
+    assert "dace::math::max" in code
     # Assigning scalar max to vector
-    assert 'svdup' in code
+    assert "svdup" in code
 
 
 def test_fused_operations():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -138,10 +154,20 @@ def test_fused_operations():
     code = get_code(program)
 
     # All fused ops
-    assert 'svmad' in code
-    assert 'svmla' in code
-    assert 'svmls' in code
-    assert 'svmsb' in code
+    assert "svmad" in code
+    assert "svmla" in code
+    assert "svmls" in code
+    assert "svmsb" in code
 
     # No fusion if less than 2 vectors
-    assert 'svadd' in code
+    assert "svadd" in code
+
+
+if __name__ == "__main__":
+    test_assign_scalar()
+    test_assign_pointer()
+    test_compare_scalar_vector()
+    test_if_block()
+    test_assign_new_variable()
+    test_math_functions()
+    test_fused_operations()

@@ -1,17 +1,10 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import dace
-from dace.transformation.subgraph import SubgraphFusion
-import dace.transformation.subgraph.helpers as helpers
-import dace.sdfg.nodes as nodes
 import numpy as np
-
-from dace.sdfg.graph import SubgraphView
-from dace.transformation.interstate import StateFusion
-from typing import List, Union
-import sys
 from util import fusion
 
-N, M, O = [dace.symbol(s) for s in ['N', 'M', 'O']]
+import dace
+
+N, M, O = [dace.symbol(s) for s in ["N", "M", "O"]]
 
 
 @dace.program

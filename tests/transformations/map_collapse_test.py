@@ -1,5 +1,4 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import copy
 import dace
 from dace.sdfg.utils import consolidate_edges
 from dace.transformation.dataflow import MapCollapse
@@ -52,14 +51,14 @@ def test_mapcollapse_dep_edges():
     maps = {n for n, g in sdfg.all_nodes_recursive() if isinstance(n, dace.nodes.MapEntry)}
     assert len(maps) == 1
     map_entry = maps.pop()
-    assert map_entry.map.range == dace.subsets.Range([
-        (0, 4, 1), (0, 4, 1), (0, 4, 1)
-    ]), f"Excepted 3 ranges all with range 0:5:1, got {map_entry.map.range}"
+    assert map_entry.map.range == dace.subsets.Range([(0, 4, 1), (0, 4, 1), (0, 4, 1)]), (
+        f"Excepted 3 ranges all with range 0:5:1, got {map_entry.map.range}"
+    )
     assert map_entry.map.params == ["i", "j", "k"]
     sdfg.validate()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_mapcollapse_tree()
     test_mapcollapse_consolidated()
     test_mapcollapse_dep_edges()

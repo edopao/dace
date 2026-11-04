@@ -1,15 +1,16 @@
 # Copyright 2019-2025 ETH Zurich and the DaCe authors. All rights reserved.
 """Eliminates loop overwriting data containers"""
 
+import copy
+
+from dace import nodes, symbolic
 from dace import sdfg as sd
 from dace.sdfg import utils as sdutil
-from dace.sdfg.state import ControlFlowRegion, LoopRegion, ConditionalBlock, SDFGState
-from dace.transformation import transformation, helpers
-from dace.transformation.passes.analysis import loop_analysis
 from dace.sdfg.sdfg import InterstateEdge
-from dace import symbolic, nodes
+from dace.sdfg.state import ConditionalBlock, ControlFlowRegion, LoopRegion, SDFGState
 from dace.subsets import intersects
-import copy
+from dace.transformation import helpers, transformation
+from dace.transformation.passes.analysis import loop_analysis
 
 
 @transformation.explicit_cf_compatible
@@ -23,6 +24,30 @@ class LoopOverwriteElimination(transformation.MultiStateTransformation):
     @classmethod
     def expressions(cls):
         return [sdutil.node_path_graph(cls.loop)]
+
+    def _last_iteration(self):
+        """The last value the iteration variable actually ATTAINS, or None if the range is unknown.
+
+        ``get_loop_end`` returns the inclusive bound implied by the loop CONDITION (``i < 10`` -> 9),
+        which is NOT the last attained iterate whenever the stride does not divide the trip range:
+        ``range(0, 10, 2)`` attains 8 and never 9.
+
+        Both the loop-carried-dependency guard in ``can_be_applied`` and the substitution in ``apply``
+        must reason about the SAME index -- eliminating the loop keeps exactly this iteration. They used
+        to compute it separately and disagreed (the guard tested ``end``, ``apply`` substituted the real
+        iterate), so the guard validated an index the body was never pinned to and a genuinely
+        loop-carried-dependent loop was eliminated. Deriving it once here is what keeps them in step.
+
+        ``int_floor``, never ``//``: on sympy operands ``//`` builds ``sympy.floor``, which the code
+        generator lowers to C ``/`` -- truncation toward zero, not floor -- so the emitted index
+        disagreed with the analyzed one for a symbolic bound.
+        """
+        start = loop_analysis.get_init_assignment(self.loop)
+        end = loop_analysis.get_loop_end(self.loop)
+        stride = loop_analysis.get_loop_stride(self.loop)
+        if start is None or end is None or stride is None:
+            return None
+        return start + symbolic.int_floor(end - start, stride) * stride
 
     def can_be_applied(self, graph, expr_index, sdfg, permissive=False):
         # Check if this is a for-loop with known range.
@@ -38,8 +63,8 @@ class LoopOverwriteElimination(transformation.MultiStateTransformation):
 
         # Cached lists
         cfbs = set(self.loop.all_control_flow_blocks())
-        states = set([s for s in cfbs if isinstance(s, SDFGState)])
-        interstate_edges = set(e for s in cfbs for e in s.parent_graph.in_edges(s) + s.parent_graph.out_edges(s))
+        states = {s for s in cfbs if isinstance(s, SDFGState)}
+        interstate_edges = {e for s in cfbs for e in s.parent_graph.in_edges(s) + s.parent_graph.out_edges(s)}
 
         # Find symbols depending on the loop variable
         sym_deps = {}
@@ -48,7 +73,7 @@ class LoopOverwriteElimination(transformation.MultiStateTransformation):
                 sym_expr = symbolic.pystr_to_symbolic(v)
                 if k not in sym_deps:
                     sym_deps[k] = set()
-                str_set = set([str(s) for s in sym_expr.free_symbols])
+                str_set = {str(s) for s in sym_expr.free_symbols}
                 sym_deps[k].update(str_set)
 
         itervar_dep_syms = set()
@@ -113,7 +138,7 @@ class LoopOverwriteElimination(transformation.MultiStateTransformation):
 
                     dst_subset = e.data.get_dst_subset(e, state)
                     for rb, re, _ in dst_subset.ndrange():
-                        str_set = set([str(s) for s in rb.free_symbols.union(re.free_symbols)])
+                        str_set = {str(s) for s in rb.free_symbols.union(re.free_symbols)}
                         if itervar_dep_syms.intersection(str_set):
                             return False
 
@@ -149,19 +174,17 @@ class LoopOverwriteElimination(transformation.MultiStateTransformation):
                     if itervar_dep_syms.intersection(cond.get_free_symbols()):
                         return False
             elif isinstance(cfb, LoopRegion):
-                if (itervar_dep_syms.intersection(cfb.init_statement.get_free_symbols())
-                        or itervar_dep_syms.intersection(cfb.loop_condition.get_free_symbols())
-                        or itervar_dep_syms.intersection(cfb.update_statement.get_free_symbols())):
+                if (
+                    itervar_dep_syms.intersection(cfb.init_statement.get_free_symbols())
+                    or itervar_dep_syms.intersection(cfb.loop_condition.get_free_symbols())
+                    or itervar_dep_syms.intersection(cfb.update_statement.get_free_symbols())
+                ):
                     return False
 
         return True
 
     def apply(self, graph: ControlFlowRegion, sdfg: sd.SDFG):
-        start = loop_analysis.get_init_assignment(self.loop)
-        end = loop_analysis.get_loop_end(self.loop)
-        stride = loop_analysis.get_loop_stride(self.loop)
-
-        last_iteration = start + (end - start) // stride * stride
+        last_iteration = self._last_iteration()
         itervar = self.loop.loop_variable
 
         # Rewrite each occurence of the loop variable in the loop body

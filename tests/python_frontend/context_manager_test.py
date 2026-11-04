@@ -1,13 +1,15 @@
 # Copyright 2019-2022 ETH Zurich and the DaCe authors. All rights reserved.
 import contextlib
-import dace
+
 import numpy as np
+import pytest
+
+import dace
 
 
 def test_context_manager_decorator():
 
     class Ctx:
-
         def __init__(self) -> None:
             self.did_start = False
             self.should_pass = False
@@ -19,7 +21,7 @@ def test_context_manager_decorator():
             self.stop()
 
         def start(self, name: str):
-            if name == 'pass':
+            if name == "pass":
                 self.did_start = True
 
         def stop(self):
@@ -30,11 +32,12 @@ def test_context_manager_decorator():
 
     @dace.program
     def prog(A: dace.float64[20]):
-        with ctx.mgr('pass'):
+        with ctx.mgr("pass"):
             A[:] = 0
 
     A = np.random.rand(20)
-    prog(A)
+    with pytest.warns(match="Automatically creating callback"):
+        prog(A)
     assert ctx.should_pass
 
 
@@ -70,17 +73,23 @@ def test_ctxmgr_name_clash():
             prog_b()
         return i
 
-    sdfg = ctxmgr_name_clashing_0.to_sdfg()
+    with pytest.warns(match="Automatically creating callback"):
+        with pytest.warns(match="Cannot infer return type"):
+            sdfg = ctxmgr_name_clashing_0.to_sdfg()
 
     for i, f in enumerate([ctxmgr_name_clashing_0, ctxmgr_name_clashing_1]):
-
         if i > 0:
             f.load_precompiled_sdfg(sdfg.build_folder)
 
         a_count = 0
         b_count = 0
         for _ in range(100):
-            res = f()
+            if _ == 0 and i == 0:
+                with pytest.warns(match="Automatically creating callback"):
+                    with pytest.warns(match="Cannot infer return type"):
+                        res = f()
+            else:
+                res = f()
             if res[0] == 0:
                 a_count += 1
             else:
@@ -88,6 +97,6 @@ def test_ctxmgr_name_clash():
         assert a_count > 0 and b_count > 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_context_manager_decorator()
     test_ctxmgr_name_clash()

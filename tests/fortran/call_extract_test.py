@@ -1,7 +1,6 @@
 # Copyright 2019-2023 ETH Zurich and the DaCe authors. All rights reserved.
 
 import numpy as np
-import pytest
 
 from dace.frontend.fortran import fortran_parser
 
@@ -36,5 +35,4 @@ def test_fortran_frontend_call_extract():
 
 
 if __name__ == "__main__":
-
     test_fortran_frontend_call_extract()

@@ -4,22 +4,19 @@ import pytest
 pytest.importorskip("torch", reason="PyTorch not installed. Please install with: pip install dace[ml]")
 import os
 
-import numpy as np
 import torch
 import torch.utils.cpp_extension
-from dace.codegen import targets, compiler
-from dace.codegen.codeobject import CodeObject
 from torch import nn
 
 import dace
+from dace.codegen import compiler, targets
+from dace.codegen.codeobject import CodeObject
 from dace.libraries.torch import PyTorch
 from tests.utils import torch_tensors_close
 
 op_source = """
 #include <torch/torch.h>
 #include <torch/script.h>
-
-#include <ATen/NamedTensorUtils.h>
 
 using torch::Tensor;
 using torch::DeviceType;
@@ -83,18 +80,15 @@ TORCH_LIBRARY_IMPL(myops, Autograd, m) {
 
 @pytest.mark.torch
 def test_extension():
-    program = CodeObject("myadd",
-                         op_source,
-                         "cpp",
-                         targets.cpu.CPUCodeGen,
-                         "MyAddFunction",
-                         environments={PyTorch.full_class_path()})
+    program = CodeObject(
+        "myadd", op_source, "cpp", targets.cpu.CPUCodeGen, "MyAddFunction", environments={PyTorch.full_class_path()}
+    )
 
-    BUILD_PATH = os.path.join('.dacecache', "pt_extension")
+    BUILD_PATH = os.path.join(".dacecache", "pt_extension")
     compiler.generate_program_folder(None, [program], BUILD_PATH)
     torch.utils.cpp_extension.load(
-        name='pt_extension',
-        sources=[os.path.join(BUILD_PATH, 'src', 'cpu', 'myadd.cpp')],
+        name="pt_extension",
+        sources=[os.path.join(BUILD_PATH, "src", "cpu", "myadd.cpp")],
         is_python_module=False,
     )
     torch.ops.myops.myadd(torch.randn(32, 32), torch.rand(32, 32))
@@ -105,7 +99,6 @@ def test_module_with_constant():
 
     @dace.ml.module(sdfg_name="test_module_with_constant")
     class Module(nn.Module):
-
         def forward(self, x):
             return x + 1
 

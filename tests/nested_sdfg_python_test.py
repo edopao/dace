@@ -2,10 +2,8 @@
 import numpy as np
 
 import dace as dp
-from dace.sdfg import SDFG
-from dace.memlet import Memlet
 
-N = dp.symbol('N')
+N = dp.symbol("N")
 
 
 @dp.program
@@ -31,7 +29,7 @@ def sdfg_with_children(A: dp.float32[N, N], B: dp.float32[N, N]):
 
 
 def test():
-    print('Nested SDFG test (Python syntax)')
+    print("Nested SDFG test (Python syntax)")
     # Externals (parameters, symbols)
     N = 64
 

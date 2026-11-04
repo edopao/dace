@@ -1,16 +1,14 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 import dace
 from tests.codegen.sve.common import get_code
-import pytest
-from dace.codegen.targets.sve.util import NotSupportedError
 
-N = dace.symbol('N')
+N = dace.symbol("N")
 
 
 def test_wcr_sum():
 
-    @dace.program(dace.float64[N], dace.float64[1])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[1]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -19,14 +17,14 @@ def test_wcr_sum():
 
     code = get_code(program)
 
-    assert 'ReductionType::Sum' in code
-    assert 'svaddv' in code
+    assert "ReductionType::Sum" in code
+    assert "svaddv" in code
 
 
 def test_wcr_min():
 
-    @dace.program(dace.float64[N], dace.float64[1])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[1]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -35,14 +33,14 @@ def test_wcr_min():
 
     code = get_code(program)
 
-    assert 'ReductionType::Min' in code
-    assert 'svminv' in code
+    assert "ReductionType::Min" in code
+    assert "svminv" in code
 
 
 def test_wcr_max():
 
-    @dace.program(dace.float64[N], dace.float64[1])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[1]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -51,5 +49,5 @@ def test_wcr_max():
 
     code = get_code(program)
 
-    assert 'ReductionType::Max' in code
-    assert 'svmaxv' in code
+    assert "ReductionType::Max" in code
+    assert "svmaxv" in code

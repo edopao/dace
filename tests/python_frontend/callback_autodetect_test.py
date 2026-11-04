@@ -1,14 +1,16 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-""" Tests automatic detection and baking of callbacks in the Python frontend. """
-from typing import Dict, Union
-import dace
+"""Tests automatic detection and baking of callbacks in the Python frontend."""
+
+import time
+
 import numpy as np
 import pytest
-import time
+
+import dace
 from dace import config
 from dace.frontend.python.common import DaceSyntaxError
 
-N = dace.symbol('N')
+N = dace.symbol("N")
 
 
 def dace_inhibitor(f):
@@ -44,7 +46,8 @@ def test_automatic_callback():
     beta = np.float64(np.random.rand())
     expected = 0.5 * A @ B + beta * C
 
-    autocallback(A, B, C, beta)
+    with pytest.warns(match="Automatically creating callback"):
+        autocallback(A, B, C, beta)
 
     assert np.allclose(C, expected)
 
@@ -65,7 +68,8 @@ def test_automatic_callback_2():
     beta = np.float64(np.random.rand())
     expected = 0.5 * A @ B * 0.5 * 2 + beta * C
 
-    autocallback(A, B, C, beta)
+    with pytest.warns(match="Automatically creating callback"):
+        autocallback(A, B, C, beta)
 
     assert np.allclose(C, expected)
 
@@ -85,7 +89,8 @@ def test_automatic_callback_inference():
     beta = np.float64(np.random.rand())
     expected = 0.5 * A @ B + beta * C
 
-    autocallback_ret(A, B, C, beta)
+    with pytest.warns(match="Automatically creating callback"):
+        autocallback_ret(A, B, C, beta)
 
     assert np.allclose(C, expected)
 
@@ -106,7 +111,8 @@ def test_automatic_callback_inference_2():
     beta = np.float64(np.random.rand())
     expected = 0.5 * A @ B * 0.5 * 2 + beta * C
 
-    autocallback_ret(A, B, C, beta)
+    with pytest.warns(match="Automatically creating callback"):
+        autocallback_ret(A, B, C, beta)
 
     assert np.allclose(C, expected)
 
@@ -114,7 +120,6 @@ def test_automatic_callback_inference_2():
 def test_automatic_callback_method():
 
     class NotDace:
-
         def __init__(self):
             self.q = np.random.rand()
 
@@ -131,7 +136,8 @@ def test_automatic_callback_method():
 
     A = np.random.rand(24, 24)
 
-    out = autocallback_method(A)
+    with pytest.warns(match="Automatically creating callback"):
+        out = autocallback_method(A)
 
     assert np.allclose(out, nd.q * A)
 
@@ -145,9 +151,10 @@ def modcallback(A: dace.float64[N, N], B: dace.float64[N]):
 def test_callback_from_module():
     A = np.random.rand(24, 24)
     B = np.random.rand(24)
-    modcallback(A, B)
+    with pytest.warns(match="Automatically creating callback"):
+        modcallback(A, B)
     diff = np.linalg.norm(B - np.median(A, axis=1))
-    print('Difference:', diff)
+    print("Difference:", diff)
     assert diff <= 1e-5
 
 
@@ -164,7 +171,7 @@ def tasklet_callback(A: dace.float64[N, N], B: dace.float64[N, N]):
             b = sq(a)
 
 
-@pytest.mark.skip('Syntax is not yet supported')
+@pytest.mark.skip("Syntax is not yet supported")
 def test_callback_tasklet():
     A = np.random.rand(24, 24)
     B = np.random.rand(24, 24)
@@ -186,7 +193,8 @@ def test_view_callback():
     beta = np.float64(np.random.rand())
     expected = 0.5 * A[:24] @ B + beta * C
 
-    autocallback(A, B, C, beta)
+    with pytest.warns(match="Automatically creating callback"):
+        autocallback(A, B, C, beta)
 
     assert np.allclose(C, expected)
 
@@ -195,10 +203,11 @@ def test_print():
 
     @dace.program
     def printprog(a: dace.float64[2, 2]):
-        print(a, 'hello')
+        print(a, "hello")
 
     a = np.random.rand(2, 2)
-    printprog(a)
+    with pytest.warns(match="Automatically creating callback"):
+        printprog(a)
 
 
 def test_reorder():
@@ -224,10 +233,12 @@ def test_reorder():
         b()
         a()
 
-    sdfg = do_not_reorder.to_sdfg()
-    assert list(sdfg.arrays.keys()) == ['__pystate']
+    with pytest.warns(match="Automatically creating callback"):
+        sdfg = do_not_reorder.to_sdfg()
+    assert list(sdfg.arrays.keys()) == ["__pystate"]
 
-    do_not_reorder()
+    with pytest.warns(match="Automatically creating callback"):
+        do_not_reorder()
     assert should_be_one == 1
     assert should_be_two == 2
 
@@ -262,10 +273,12 @@ def test_reorder_nested():
         call_b()
         call_a()
 
-    sdfg = do_not_reorder_nested.to_sdfg()
-    assert list(sdfg.arrays.keys()) == ['__pystate']
+    with pytest.warns(match="Automatically creating callback"):
+        sdfg = do_not_reorder_nested.to_sdfg()
+    assert list(sdfg.arrays.keys()) == ["__pystate"]
 
-    do_not_reorder_nested()
+    with pytest.warns(match="Automatically creating callback"):
+        do_not_reorder_nested()
     assert should_be_one == 1
     assert should_be_two == 2
 
@@ -311,10 +324,12 @@ def test_callback_samename():
         call_b()
         call_a()
 
-    sdfg = same_name_nested.to_sdfg(simplify=False)
-    assert list(sdfg.arrays.keys()) == ['__pystate']
+    with pytest.warns(match="Automatically creating callback"):
+        sdfg = same_name_nested.to_sdfg(simplify=False)
+    assert list(sdfg.arrays.keys()) == ["__pystate"]
 
-    same_name_nested()
+    with pytest.warns(match="Automatically creating callback"):
+        same_name_nested()
     assert should_be_one == 1
     assert should_be_two == 2
 
@@ -338,9 +353,29 @@ def test_gpu_callback():
 
     a = cp.random.rand(20)
     expected = a * 2
-    gpucallback(a)
+    with pytest.warns(match="Automatically creating callback"):
+        gpucallback(a)
 
     assert cp.allclose(a, expected)
+
+
+def test_gpu_callback_without_stream_warns():
+    # Codegen-only (no device needed): a GPU-touching callback that is not stream-aware must warn.
+    @dace_inhibitor
+    def cb_no_stream(arr):
+        arr *= 2
+
+    @dace.program
+    def gpucallback(A: dace.float64[20]):
+        tmp = dace.ndarray([20], dace.float64, storage=dace.StorageType.GPU_Global)
+        tmp[:] = A
+        cb_no_stream(tmp)
+        A[:] = tmp
+
+    with pytest.warns(match="Automatically creating callback"):
+        sdfg = gpucallback.to_sdfg()
+    with pytest.warns(UserWarning, match="not stream-aware"):
+        sdfg.generate_code()
 
 
 def test_bad_closure():
@@ -357,8 +392,9 @@ def test_bad_closure():
     A = np.random.rand(20)
     B = np.random.rand(20)
     now = time.time()
-    timeprog(A)
-    timeprog(B)
+    with pytest.warns(match="Automatically creating callback"):
+        timeprog(A)
+        timeprog(B)
 
     assert np.all(B > A) and np.all(A > now)
 
@@ -372,7 +408,6 @@ def test_object_with_nested_callback():
         c[:] = a + b
 
     class MyObject:
-
         def __call__(self, a, b):
             c = dict(a=a, b=b)
             call_another_function(**c)
@@ -385,7 +420,8 @@ def test_object_with_nested_callback():
 
     a = np.random.rand(20)
     b = np.random.rand(20)
-    callobj(a, b)
+    with pytest.warns(match="Automatically creating callback"):
+        callobj(a, b)
     assert np.allclose(c, a + b)
 
 
@@ -401,7 +437,8 @@ def test_two_parameters_same_name():
 
     a = np.random.rand(20)
     b = np.random.rand(20)
-    calladd(a, b)
+    with pytest.warns(match="Automatically creating callback"):
+        calladd(a, b)
     assert np.allclose(b, a + a)
 
 
@@ -417,12 +454,13 @@ def test_inout_same_name():
 
     a = np.random.rand(20)
     expected = a + a
-    calladd(a)
+    with pytest.warns(match="Automatically creating callback"):
+        calladd(a)
     assert np.allclose(expected, a)
 
 
 def test_inhibit_state_fusion():
-    """ Tests that state fusion is inhibited around callbacks if configured as such. """
+    """Tests that state fusion is inhibited around callbacks if configured as such."""
 
     @dace_inhibitor
     def add(a, b):
@@ -433,12 +471,14 @@ def test_inhibit_state_fusion():
         A[:] = add(B, C)
         D[:] = add(A, C)
 
-    with config.set_temporary('frontend', 'dont_fuse_callbacks', value=True):
-        sdfg = calladd.to_sdfg(simplify=True)
+    with config.set_temporary("frontend", "dont_fuse_callbacks", value=True):
+        with pytest.warns(match="Automatically creating callback"):
+            sdfg = calladd.to_sdfg(simplify=True)
         assert sdfg.number_of_nodes() == 5
 
-    with config.set_temporary('frontend', 'dont_fuse_callbacks', value=False):
-        sdfg = calladd.to_sdfg(simplify=True)
+    with config.set_temporary("frontend", "dont_fuse_callbacks", value=False):
+        with pytest.warns(match="Automatically creating callback"):
+            sdfg = calladd.to_sdfg(simplify=True)
         assert sdfg.number_of_nodes() == 1
 
 
@@ -456,10 +496,11 @@ def test_two_callbacks():
         arr[:] = arr[:] * scal
         call(arr)
 
-    arr = np.ones((12, ), np.float64)
+    arr = np.ones((12,), np.float64)
     scal = 2
 
-    call_twice(arr, scal)
+    with pytest.warns(match="Automatically creating callback"):
+        call_twice(arr, scal)
     assert called_cnt == 2
 
 
@@ -481,10 +522,11 @@ def test_two_callbacks_different_sig():
     def call_twice_2(arr, scal):
         call_twice(arr, scal)
 
-    arr = np.ones((12, ), np.float64)
+    arr = np.ones((12,), np.float64)
     scal = 2
 
-    call_twice_2(arr, scal)
+    with pytest.warns(match="Automatically creating callback"):
+        call_twice_2(arr, scal)
     assert called_cnt == 2
 
 
@@ -506,17 +548,17 @@ def test_two_callbacks_different_type():
     def call_twice_3(arr: dace.float64[20], arr2: dace.int32[20, 20]):
         call_twice(arr, arr2)
 
-    arr = np.ones((20, ), np.float64)
+    arr = np.ones((20,), np.float64)
     arr2 = np.full((20, 20), 2, np.int32)
 
-    call_twice_3(arr, arr2)
+    with pytest.warns(match="Automatically creating callback"):
+        call_twice_3(arr, arr2)
     assert called_cnt == 2
 
 
 def test_disallowed_keyword():
 
     class Obj:
-
         def hello(a):
             try:
                 return a + 1
@@ -529,7 +571,8 @@ def test_disallowed_keyword():
         return b
 
     a = np.random.rand(10)
-    assert np.allclose(prog(a), a + 1)
+    with pytest.warns(match="Automatically creating callback"):
+        assert np.allclose(prog(a), a + 1)
 
 
 def test_nested_duplicate_callbacks():
@@ -553,10 +596,12 @@ def test_nested_duplicate_callbacks():
         myprogram_1(a)
 
     a = np.random.rand(20, 1)
-    sdfg = myprogram.to_sdfg(a)
+    with pytest.warns(match="Automatically creating callback"):
+        sdfg = myprogram.to_sdfg(a)
     build_folder = sdfg.build_folder
 
-    myprogram(a)
+    with pytest.warns(match="Automatically creating callback"):
+        myprogram(a)
     # Ensure the cache is clear
     myprogram._cache.clear()
 
@@ -576,7 +621,8 @@ def test_scalar_retval():
 
     old_time = time.time()
     result = np.random.rand(20)
-    myprogram(result)
+    with pytest.warns(match="Automatically creating callback"):
+        myprogram(result)
     new_time = time.time()
     assert result[0] >= old_time and result[0] <= new_time
 
@@ -589,17 +635,17 @@ def test_callback_kwargs():
     @dace_inhibitor
     def mycb(a, b=1, **kwargs):
         nonlocal called_with
-        called_with = (a, b, kwargs['c'])
+        called_with = (a, b, kwargs["c"])
 
     @dace_inhibitor
     def mycb2(d, **kwargs):
         nonlocal called_2_with
-        called_2_with = (d, kwargs['e'], kwargs['f'])
+        called_2_with = (d, kwargs["e"], kwargs["f"])
 
     @dace_inhibitor
     def mycb3(**kwargs):
         nonlocal called_3_with
-        called_3_with = kwargs['ghi']
+        called_3_with = kwargs["ghi"]
 
     # Call three callbacks with similar types to ensure trampolines are unique
     @dace
@@ -608,7 +654,8 @@ def test_callback_kwargs():
         mycb2(4, f=5, e=6)
         mycb3(ghi=7)
 
-    myprogram()
+    with pytest.warns(match="Automatically creating callback"):
+        myprogram()
 
     assert called_with == (1, 2, 3)
     assert called_2_with == (4, 6, 5)
@@ -616,7 +663,7 @@ def test_callback_kwargs():
 
 
 def test_same_callback_kwargs():
-    """ Calls the same callback twice, with different kwargs each time. """
+    """Calls the same callback twice, with different kwargs each time."""
     called_with = (None, None, None)
     called_2_with = (None, None, None)
 
@@ -624,17 +671,18 @@ def test_same_callback_kwargs():
     def mycb(**kwargs):
         nonlocal called_with
         nonlocal called_2_with
-        if 'a' in kwargs:
-            called_with = (kwargs['a'], kwargs['b'], kwargs['c'])
+        if "a" in kwargs:
+            called_with = (kwargs["a"], kwargs["b"], kwargs["c"])
         else:
-            called_2_with = (kwargs['d'], kwargs['e'], kwargs['f'])
+            called_2_with = (kwargs["d"], kwargs["e"], kwargs["f"])
 
     @dace
     def myprogram():
         mycb(a=1, b=2, c=3)
         mycb(d=4, f=5, e=6)
 
-    myprogram()
+    with pytest.warns(match="Automatically creating callback"):
+        myprogram()
 
     assert called_with == (1, 2, 3)
     assert called_2_with == (4, 6, 5)
@@ -644,12 +692,13 @@ def test_builtin_callback_kwargs():
 
     @dace
     def callprint():
-        print('hi', end=',\n')
+        print("hi", end=",\n")
 
-    callprint()
+    with pytest.warns(match="Automatically creating callback"):
+        callprint()
 
 
-@pytest.mark.parametrize('as_kwarg', (False, True))
+@pytest.mark.parametrize("as_kwarg", (False, True))
 def test_callback_literal_list(as_kwarg):
     success = False
 
@@ -672,11 +721,12 @@ def test_callback_literal_list(as_kwarg):
 
     a = np.zeros((2, 2, 2))
     b = np.ones((2, 2, 2))
-    caller(a, b)
+    with pytest.warns(match="Automatically creating callback"):
+        caller(a, b)
     assert success is True
 
 
-@pytest.mark.parametrize('as_kwarg', (False, True))
+@pytest.mark.parametrize("as_kwarg", (False, True))
 def test_callback_literal_dict(as_kwarg):
     success = False
 
@@ -684,32 +734,33 @@ def test_callback_literal_dict(as_kwarg):
     def callback(adict1, adict2):
         nonlocal success
         if len(adict1) == 3 and len(adict2) == 3:
-            if adict1['b'][0, 0, 0] == 0.0 and adict1['a'][0, 0, 0] == 1.0 and adict1[1][0, 0, 0] == 0.0:
-                if adict2['b'][0, 0, 0] == 1.0 and adict2['a'][0, 0, 0] == 1.0 and adict2[1][0, 0, 0] == 1.0:
+            if adict1["b"][0, 0, 0] == 0.0 and adict1["a"][0, 0, 0] == 1.0 and adict1[1][0, 0, 0] == 0.0:
+                if adict2["b"][0, 0, 0] == 1.0 and adict2["a"][0, 0, 0] == 1.0 and adict2[1][0, 0, 0] == 1.0:
                     success = True
 
     if as_kwarg:
 
         @dace
         def caller(a, b):
-            callback({'b': a, 'a': b, 1: a}, adict2={1: b, 'a': b, 'b': b})
+            callback({"b": a, "a": b, 1: a}, adict2={1: b, "a": b, "b": b})
 
     else:
 
         @dace
         def caller(a, b):
-            callback({'b': a, 'a': b, 1: a}, {1: b, 'a': b, 'b': b})
+            callback({"b": a, "a": b, 1: a}, {1: b, "a": b, "b": b})
 
     a = np.zeros((2, 2, 2))
     b = np.ones((2, 2, 2))
-    caller(a, b)
+    with pytest.warns(match="Automatically creating callback"):
+        caller(a, b)
     assert success is True
 
 
 def test_unused_callback():
 
     def deg_to_rad(a):
-        res = np.zeros((2, ))
+        res = np.zeros((2,))
 
         res[0] = a[0] * np.pi / 180.0
         res[1] = a[1] * np.pi / 180.0
@@ -745,7 +796,8 @@ def test_callback_with_nested_calls():
     def tester(A: dace.float64[20]):
         callback(np.sum(A))
 
-    tester(np.ones([20]))
+    with pytest.warns(match="Automatically creating callback"):
+        tester(np.ones([20]))
 
     assert success is True
 
@@ -760,10 +812,11 @@ def test_string_callback():
 
     @dace.program
     def printmystring(a: str):
-        cb('hello', a)
+        cb("hello", a)
 
-    printmystring('world')
-    assert result == ('hello', 'world')
+    with pytest.warns(match="Automatically creating callback"):
+        printmystring("world")
+    assert result == ("hello", "world")
 
 
 def test_unknown_pyobject():
@@ -772,20 +825,19 @@ def test_unknown_pyobject():
     success_counter = 0
 
     class MyCustomObject:
-
         def __init__(self) -> None:
             nonlocal counter
             self.q = counter
             counter += 1
 
         def __str__(self):
-            return f'MyCustomObject(q={self.q})'
+            return f"MyCustomObject(q={self.q})"
 
     @dace_inhibitor
-    def checkit(obj: Union[MyCustomObject, Dict[str, Union[int, str]]]):
+    def checkit(obj: MyCustomObject | dict[str, int | str]):
         nonlocal last_seen
         nonlocal success_counter
-        if obj == {'a': 1, 'b': '2'}:
+        if obj == {"a": 1, "b": "2"}:
             success_counter += 1
         elif isinstance(obj, MyCustomObject) and obj.q == last_seen:
             success_counter += 1
@@ -794,12 +846,14 @@ def test_unknown_pyobject():
     @dace
     def tester(unused):
         for _ in dace.unroll(range(10)):
-            a = dict(a=1, b='2')
+            a = dict(a=1, b="2")
             b = MyCustomObject()
             checkit(a)
             checkit(b)
 
-    tester(np.random.rand(20))
+    with pytest.warns(match="Automatically creating callback"):
+        with pytest.warns(match="Cannot infer return type"):
+            tester(np.random.rand(20))
     assert success_counter == 20
 
 
@@ -807,7 +861,6 @@ def test_pyobject_return():
     counter = 1
 
     class MyCustomObject:
-
         @dace_inhibitor
         def __init__(self) -> None:
             nonlocal counter
@@ -815,14 +868,16 @@ def test_pyobject_return():
             counter += 1
 
         def __str__(self):
-            return f'MyCustomObject(q={self.q})'
+            return f"MyCustomObject(q={self.q})"
 
     @dace
     def tester():
         MyCustomObject()
         return MyCustomObject()
 
-    obj = tester()
+    with pytest.warns(match="Automatically creating callback"):
+        with pytest.warns(match="Cannot infer return type"):
+            obj = tester()
     assert isinstance(obj, MyCustomObject)
     assert obj.q == 2
 
@@ -831,7 +886,6 @@ def test_pyobject_return_tuple():
     counter = 1
 
     class MyCustomObject:
-
         @dace_inhibitor
         def __init__(self) -> None:
             nonlocal counter
@@ -839,14 +893,16 @@ def test_pyobject_return_tuple():
             counter += 1
 
         def __str__(self):
-            return f'MyCustomObject(q={self.q})'
+            return f"MyCustomObject(q={self.q})"
 
     @dace
     def tester():
         MyCustomObject()
         return MyCustomObject(), MyCustomObject()
 
-    obj, obj2 = tester()
+    with pytest.warns(match="Automatically creating callback"):
+        with pytest.warns(match="Cannot infer return type"):
+            obj, obj2 = tester()
     assert isinstance(obj, MyCustomObject)
     assert obj.q == 2
     assert isinstance(obj2, MyCustomObject)
@@ -868,8 +924,10 @@ def test_custom_generator():
             val: int = next(gen)
             a[i] = val
 
-    aa = np.ones((20, ), np.float64)
-    tester(aa)
+    aa = np.ones((20,), np.float64)
+    with pytest.warns(match="Automatically creating callback"):
+        with pytest.warns(match="Cannot infer return type"):
+            tester(aa)
     assert np.allclose(aa, np.arange(20, 0, -1))
 
 
@@ -886,7 +944,7 @@ def test_custom_generator_with_break():
         try:
             return next(generator), False
         except StopIteration:
-            return None, True
+            return 0, True
 
     @dace
     def tester(a: dace.float64[20]):
@@ -899,11 +957,18 @@ def test_custom_generator_with_break():
                 break
             a[i] = val
 
-    aa = np.ones((21, ), np.float64)
+    aa = np.ones((21,), np.float64)
     expected = np.copy(aa)
     expected[:20] = np.arange(20, 0, -1)
 
-    tester(aa)
+    with pytest.warns(
+        UserWarning, match='Automatically creating callback to Python interpreter from method "reverse_range"'
+    ):
+        with pytest.warns(UserWarning, match='Cannot infer return type of function call "reverse_range"'):
+            with pytest.warns(
+                UserWarning, match='Automatically creating callback to Python interpreter from method "my_next"'
+            ):
+                tester(aa)
     assert np.allclose(aa, expected)
 
 
@@ -921,7 +986,8 @@ def test_disallowed_callback_in_condition():
             return arr
 
     with pytest.raises(DaceSyntaxError, match="Trying to operate on a callback"):
-        callback_in_condition.to_sdfg()
+        with pytest.warns(match="Automatically creating callback"):
+            callback_in_condition.to_sdfg()
 
 
 def test_disallowed_callback_slice():
@@ -936,10 +1002,12 @@ def test_disallowed_callback_slice():
         return arr + a[:20]
 
     with pytest.raises(DaceSyntaxError, match="cannot be sliced"):
-        callback_in_condition.to_sdfg()
+        with pytest.warns(match="Automatically creating callback"):
+            with pytest.warns(match="Cannot infer return type"):
+                callback_in_condition.to_sdfg()
 
 
-@pytest.mark.skip('Test requires GUI')
+@pytest.mark.skip("Test requires GUI")
 def test_matplotlib_with_compute():
     """
     Stacked bar plot example from Matplotlib using callbacks and pyobjects.
@@ -961,18 +1029,17 @@ def test_matplotlib_with_compute():
         p1 = plt.bar(ind, menMeans, width, yerr=menStd)
         p2 = plt.bar(ind, womenMeans, width, bottom=menMeans, yerr=womenStd)
 
-        plt.ylabel('Scores')
-        plt.title('Scores by group and gender')
-        plt.xticks(ind, ('G1', 'G2', 'G3', 'G4', 'G5'))
+        plt.ylabel("Scores")
+        plt.title("Scores by group and gender")
+        plt.xticks(ind, ("G1", "G2", "G3", "G4", "G5"))
         plt.yticks(np.arange(0, 81, 10))
-        plt.legend((p1[0], p2[0]), ('Men', 'Women'))
+        plt.legend((p1[0], p2[0]), ("Men", "Women"))
         plt.show()
 
     tester()
 
 
 class _MyArrayLike:
-
     def __init__(self) -> None:
         self.array = np.random.rand(10)
 
@@ -998,7 +1065,8 @@ def test_callback_with_arraylike_closure_object():
     def tester():
         callback(obj)
 
-    tester()
+    with pytest.warns(match="Automatically creating callback"):
+        tester()
     assert test
 
 
@@ -1014,7 +1082,8 @@ def test_callback_with_arraylike_object():
     def tester(o):
         callback(o)
 
-    tester(_MyArrayLike())
+    with pytest.warns(match="Automatically creating callback"):
+        tester(_MyArrayLike())
     assert test
 
 
@@ -1030,7 +1099,8 @@ def test_callback_with_arraylike_object_typehints():
     def tester(o: dace.float64[10]):
         callback(o)
 
-    tester(_MyArrayLike())
+    with pytest.warns(match="Automatically creating callback"):
+        tester(_MyArrayLike())
     assert test
 
 
@@ -1038,7 +1108,6 @@ def test_nested_callback_with_nested_arraylike_object():
     test = False
 
     class State:
-
         def __init__(self) -> None:
             self.myarraylike = _MyArrayLike()
 
@@ -1061,11 +1130,12 @@ def test_nested_callback_with_nested_arraylike_object():
     def tester():
         nested()
 
-    tester()
+    with pytest.warns(match="Automatically creating callback"):
+        tester()
     assert test
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_automatic_callback()
     test_automatic_callback_2()
     test_automatic_callback_inference()
@@ -1079,6 +1149,7 @@ if __name__ == '__main__':
     test_reorder_nested()
     test_callback_samename()
     test_gpu_callback()
+    test_gpu_callback_without_stream_warns()
     test_bad_closure()
     test_object_with_nested_callback()
     test_two_parameters_same_name()

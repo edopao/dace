@@ -2,14 +2,14 @@
 import dace
 from tests.codegen.sve.common import get_code
 
-N = dace.symbol('N')
-M = dace.symbol('M')
+N = dace.symbol("N")
+M = dace.symbol("M")
 
 
 def test_contiguous_map():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[i]
@@ -18,14 +18,14 @@ def test_contiguous_map():
 
     code = get_code(program)
 
-    assert 'svld1(' in code
-    assert 'svst1(' in code
+    assert "svld1(" in code
+    assert "svst1(" in code
 
 
 def test_stride_map():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N:2]:
             with dace.tasklet:
                 a << A[i]
@@ -34,15 +34,15 @@ def test_stride_map():
 
     code = get_code(program)
 
-    assert 'svld1_gather' in code
-    assert 'svst1_scatter' in code
-    assert '(0, 2)' in code
+    assert "svld1_gather" in code
+    assert "svst1_scatter" in code
+    assert "(0, 2)" in code
 
 
 def test_fake_stride():
 
-    @dace.program(dace.float64[N], dace.float64[N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N], B: dace.float64[N]):
         for i in dace.map[0:N:2]:
             with dace.tasklet:
                 a << A[i / 2]
@@ -52,16 +52,16 @@ def test_fake_stride():
     code = get_code(program)
 
     # Load is contiguous even though it doesn't look like it
-    assert 'svld1(' in code
+    assert "svld1(" in code
 
     # Store is stride
-    assert 'svst1_scatter' in code
+    assert "svst1_scatter" in code
 
 
 def test_matrix_stride():
 
-    @dace.program(dace.float64[N, M], dace.float64[M, N])
-    def program(A, B):
+    @dace.program
+    def program(A: dace.float64[N, M], B: dace.float64[M, N]):
         for i, j in dace.map[0:N, 0:M]:
             with dace.tasklet:
                 a << A[i, j]
@@ -71,16 +71,16 @@ def test_matrix_stride():
     code = get_code(program)
 
     # Contiguous load of entries
-    assert 'svld1' in code
+    assert "svld1" in code
     # Stride N store
-    assert 'svst1_scatter' in code
-    assert '(0, N)' in code
+    assert "svst1_scatter" in code
+    assert "(0, N)" in code
 
 
 def test_indirect_load_explicit():
 
-    @dace.program(dace.int64[N], dace.int64[N], dace.int64[N])
-    def program(A, B, C):
+    @dace.program
+    def program(A: dace.int64[N], B: dace.int64[N], C: dace.int64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[:]
@@ -90,13 +90,13 @@ def test_indirect_load_explicit():
 
     code = get_code(program)
 
-    assert 'svld1_gather_index' in code
+    assert "svld1_gather_index" in code
 
 
 def test_indirect_load_implicit():
 
-    @dace.program(dace.int64[N], dace.int64[N], dace.int64[N])
-    def program(A, B, C):
+    @dace.program
+    def program(A: dace.int64[N], B: dace.int64[N], C: dace.int64[N]):
         for i in dace.map[0:N]:
             with dace.tasklet:
                 a << A[B[i]]
@@ -106,4 +106,4 @@ def test_indirect_load_implicit():
     code = get_code(program)
 
     # This is still an indirect load (uses Indirection tasklet)
-    assert 'svld1_gather_index' in code
+    assert "svld1_gather_index" in code

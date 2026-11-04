@@ -1,12 +1,13 @@
 # Copyright 2019-2025 ETH Zurich and the DaCe authors. All rights reserved.
-""" Tests code generation for array copy on GPU target. """
-import dace
-from dace.transformation.auto import auto_optimize
-from dace.sdfg import nodes as dace_nodes
+"""Tests code generation for array copy on GPU target."""
+
+import re
 
 import pytest
-import copy
-import re
+
+import dace
+from dace.sdfg import nodes as dace_nodes
+from dace.transformation.auto import auto_optimize
 
 # this test requires cupy module
 cp = pytest.importorskip("cupy")
@@ -25,7 +26,9 @@ def count_node(sdfg: dace.SDFG, node_type):
     return nb_nodes
 
 
-def _make_2d_gpu_copy_sdfg(c_order: bool, ) -> dace.SDFG:
+def _make_2d_gpu_copy_sdfg(
+    c_order: bool,
+) -> dace.SDFG:
     """The SDFG performs a copy from the input of the output, that is continuous.
 
     Essentially the function will generate am SDFG that performs the following
@@ -37,10 +40,10 @@ def _make_2d_gpu_copy_sdfg(c_order: bool, ) -> dace.SDFG:
     can not be expressed as a continuous copy. Regardless which memory order
     that is used, which can be selected by `c_order`.
     """
-    sdfg = dace.SDFG(f'gpu_2d_copy_{"corder" if c_order else "forder"}_copy_sdfg')
+    sdfg = dace.SDFG(f"gpu_2d_copy_{'corder' if c_order else 'forder'}_copy_sdfg")
     state = sdfg.add_state(is_start_block=True)
 
-    for aname in 'AB':
+    for aname in "AB":
         sdfg.add_array(
             name=aname,
             shape=(20, 30),
@@ -63,8 +66,7 @@ def _make_2d_gpu_copy_sdfg(c_order: bool, ) -> dace.SDFG:
 @pytest.mark.gpu
 @pytest.mark.parametrize("c_order", [True, False])
 def test_2d_gpu_copy(c_order: bool):
-    """Check 2D strided copies are handled by the `Memcpy2D` family.
-    """
+    """Check 2D strided copies are handled by the `Memcpy2D` family."""
     sdfg = _make_2d_gpu_copy_sdfg(c_order=c_order)
     assert count_node(sdfg, dace_nodes.AccessNode) == 2
     assert count_node(sdfg, dace_nodes.MapEntry) == 0
@@ -79,7 +81,7 @@ def test_2d_gpu_copy(c_order: bool):
     # Ensure that the correct call was issued.
     #  We have to look at the CPU code and not at the GPU.
     code = sdfg.generate_code()[0].clean_code
-    m = re.search(r'(cuda|hip)Memcpy2DAsync\b', code)
+    m = re.search(r"(cuda|hip)Memcpy2DAsync\b", code)
     assert m is not None
 
     # Generate input data.
@@ -111,10 +113,10 @@ def _make_1d_gpu_copy(
     src_row: bool,
     dst_row: bool,
 ) -> dace.SDFG:
-    sdfg = dace.SDFG(f'gpu_1d_copy_{"row" if src_row else "col"}_{"row" if src_row else "col"}_copy_sdfg')
+    sdfg = dace.SDFG(f"gpu_1d_copy_{'row' if src_row else 'col'}_{'row' if src_row else 'col'}_copy_sdfg")
     state = sdfg.add_state(is_start_block=True)
 
-    for aname in 'AB':
+    for aname in "AB":
         sdfg.add_array(
             name=aname,
             shape=(20, 20),
@@ -157,11 +159,11 @@ def test_1d_gpu_copy(
     #  operates on rows, then it is a simple 1D copy.
     if src_row and dst_row:
         code = sdfg.generate_code()[0].clean_code
-        m = re.search(r'(cuda|hip)MemcpyAsync\b', code)
+        m = re.search(r"(cuda|hip)MemcpyAsync\b", code)
         assert m is not None
     else:
         code = sdfg.generate_code()[0].clean_code
-        m = re.search(r'(cuda|hip)Memcpy2DAsync\b', code)
+        m = re.search(r"(cuda|hip)Memcpy2DAsync\b", code)
         assert m is not None
 
     # Generate input data.
@@ -184,13 +186,14 @@ def test_1d_gpu_copy(
     assert all(cp.all(ref[k] == res[k]) for k in ref.keys())
 
 
-def _make_pseudo_1d_copy_sdfg(c_order: bool, ) -> dace.SDFG:
-    """An SDFG that performs a 2D copy that can be turned into a 1d copy.
-    """
-    sdfg = dace.SDFG(f'gpu_pseudo_1d_copy_{"corder" if c_order else "forder"}_sdfg')
+def _make_pseudo_1d_copy_sdfg(
+    c_order: bool,
+) -> dace.SDFG:
+    """An SDFG that performs a 2D copy that can be turned into a 1d copy."""
+    sdfg = dace.SDFG(f"gpu_pseudo_1d_copy_{'corder' if c_order else 'forder'}_sdfg")
     state = sdfg.add_state(is_start_block=True)
 
-    for aname in 'AB':
+    for aname in "AB":
         sdfg.add_array(
             name=aname,
             shape=(20, 30),
@@ -226,7 +229,7 @@ def test_pseudo_1d_copy_test(c_order: bool):
     assert count_node(csdfg.sdfg, dace_nodes.MapEntry) == 0
 
     code = sdfg.generate_code()[0].clean_code
-    m = re.search(r'(cuda|hip)MemcpyAsync\b', code)
+    m = re.search(r"(cuda|hip)MemcpyAsync\b", code)
     assert m is not None
 
     # Generate input data.
@@ -256,7 +259,7 @@ def test_pseudo_1d_copy_test(c_order: bool):
 @pytest.mark.gpu
 def test_gpu_shared_to_global_1D():
     M = 32
-    N = dace.symbol('N')
+    N = dace.symbol("N")
 
     @dace.program
     def transpose_shared_to_global(A: dace.float64[M, N], B: dace.float64[N, M]):
@@ -272,14 +275,18 @@ def test_gpu_shared_to_global_1D():
     size_M = M
     size_N = 128
 
-    A = rng.random((
-        size_M,
-        size_N,
-    ))
-    B = rng.random((
-        size_N,
-        size_M,
-    ))
+    A = rng.random(
+        (
+            size_M,
+            size_N,
+        )
+    )
+    B = rng.random(
+        (
+            size_N,
+            size_M,
+        )
+    )
 
     ref = A.transpose()
 
@@ -287,14 +294,14 @@ def test_gpu_shared_to_global_1D():
     cp.allclose(ref, B)
 
     code = sdfg.generate_code()[1].clean_code  # Get GPU code (second file)
-    m = re.search('dace::SharedToGlobal1D<.+>::Copy', code)
+    m = re.search("dace::SharedToGlobal1D<.+>::Copy", code)
     assert m is not None
 
 
 @pytest.mark.gpu
 def test_gpu_shared_to_global_1D_accumulate():
     M = 32
-    N = dace.symbol('N')
+    N = dace.symbol("N")
 
     @dace.program
     def transpose_and_add_shared_to_global(A: dace.float64[M, N], B: dace.float64[N, M]):
@@ -310,14 +317,18 @@ def test_gpu_shared_to_global_1D_accumulate():
     size_M = M
     size_N = 128
 
-    A = rng.random((
-        size_M,
-        size_N,
-    ))
-    B = rng.random((
-        size_N,
-        size_M,
-    ))
+    A = rng.random(
+        (
+            size_M,
+            size_N,
+        )
+    )
+    B = rng.random(
+        (
+            size_N,
+            size_M,
+        )
+    )
 
     ref = A.transpose() + B
 
@@ -325,7 +336,7 @@ def test_gpu_shared_to_global_1D_accumulate():
     cp.allclose(ref, B)
 
     code = sdfg.generate_code()[1].clean_code  # Get GPU code (second file)
-    m = re.search('dace::SharedToGlobal1D<.+>::template Accum', code)
+    m = re.search("dace::SharedToGlobal1D<.+>::template Accum", code)
     assert m is not None
 
 
@@ -334,10 +345,10 @@ def test_gpu_1d_copy():
     sdfg = dace.SDFG("gpu_1d_copy_sdfg")
     state = sdfg.add_state(is_start_block=True)
 
-    for aname in 'AB':
+    for aname in "AB":
         sdfg.add_array(
             name=aname,
-            shape=(20, ),
+            shape=(20,),
             dtype=dace.float64,
             storage=dace.StorageType.GPU_Global,
             transient=False,
@@ -354,7 +365,7 @@ def test_gpu_1d_copy():
     assert count_node(csdfg.sdfg, dace_nodes.MapEntry) == 0
 
     code = sdfg.generate_code()[0].clean_code
-    m = re.search(r'(cuda|hip)MemcpyAsync\b', code)
+    m = re.search(r"(cuda|hip)MemcpyAsync\b", code)
     assert m is not None
 
     # Now run the sdfg.
@@ -384,9 +395,9 @@ def test_gpu_strided_2D_copy():
     # Example: dcol[0:I, 0:J, k] -> datacol[0:I, 0:J]
     # with copy shape [I, J] and strides [J*K, K], [J, 1]
 
-    I = dace.symbol('I')
-    J = dace.symbol('J')
-    K = dace.symbol('K')
+    I = dace.symbol("I")
+    J = dace.symbol("J")
+    K = dace.symbol("K")
 
     # Create 3D array (IxJxK)
     sdfg.add_array(
@@ -420,7 +431,7 @@ def test_gpu_strided_2D_copy():
     assert count_node(csdfg.sdfg, dace_nodes.MapEntry) == 0
 
     code = sdfg.generate_code()[0].clean_code
-    m = re.search(r'(cuda|hip)Memcpy2DAsync\b', code)
+    m = re.search(r"(cuda|hip)Memcpy2DAsync\b", code)
     assert m is not None
 
     # Now run the sdfg.
@@ -436,7 +447,7 @@ def test_gpu_strided_2D_copy():
     assert all(cp.all(ref[k] == res[k]) for k in ref.keys())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_gpu_shared_to_global_1D()
     test_gpu_shared_to_global_1D_accumulate()
     test_gpu_1d_copy()

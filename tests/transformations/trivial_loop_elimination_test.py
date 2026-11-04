@@ -1,10 +1,10 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-from dace.sdfg.nodes import MapEntry
+import unittest
+
+import numpy as np
+
 import dace
 from dace.transformation.interstate import TrivialLoopElimination
-from dace.symbolic import pystr_to_symbolic
-import unittest
-import numpy as np
 
 I = dace.symbol("I")
 J = dace.symbol("J")
@@ -18,7 +18,6 @@ def trivial_loop(data: dace.float64[I, J]):
 
 
 class TrivialLoopEliminationTest(unittest.TestCase):
-
     def test_semantic_eq(self):
         A1 = np.random.rand(16, 16)
         A2 = np.copy(A1)
@@ -33,5 +32,5 @@ class TrivialLoopEliminationTest(unittest.TestCase):
         self.assertTrue(np.allclose(A1, A2))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

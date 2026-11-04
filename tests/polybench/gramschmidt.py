@@ -1,13 +1,14 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 import math
-import numpy as np
-import dace
+
 import polybench
 
-M = dace.symbol('M')
-N = dace.symbol('N')
+import dace
 
-#datatypes = [dace.float64, dace.int32, dace.float32]
+M = dace.symbol("M")
+N = dace.symbol("N")
+
+# datatypes = [dace.float64, dace.int32, dace.float32]
 datatype = dace.float64
 
 # Dataset sizes
@@ -26,8 +27,8 @@ def init_array(A, R, Q, m, n):
             R[i, j] = datatype(0)
 
 
-@dace.program(datatype[M, N], datatype[N, N], datatype[M, N])
-def gramschmidt(A, R, Q):
+@dace.program
+def gramschmidt(A: datatype[M, N], R: datatype[N, N], Q: datatype[M, N]):
 
     nrm = dace.define_local([1], datatype)
 
@@ -58,7 +59,7 @@ def gramschmidt(A, R, Q):
             out_Q = in_A / in_R
 
         @dace.mapscope
-        def set_rna(j: _[k + 1:N]):
+        def set_rna(j: _[k + 1 : N]):
             # for j in range(k+1, N, 1):
 
             @dace.tasklet
@@ -81,5 +82,5 @@ def gramschmidt(A, R, Q):
                 out_A = -in_R * in_Q
 
 
-if __name__ == '__main__':
-    polybench.main(sizes, args, [(1, 'R'), (2, 'Q')], init_array, gramschmidt)
+if __name__ == "__main__":
+    polybench.main(sizes, args, [(1, "R"), (2, "Q")], init_array, gramschmidt)

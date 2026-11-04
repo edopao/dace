@@ -1,12 +1,11 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import math
-import dace
 import polybench
-import numpy as np
 
-N = dace.symbol('N')
+import dace
 
-#datatypes = [dace.float64, dace.int32, dace.float32]
+N = dace.symbol("N")
+
+# datatypes = [dace.float64, dace.int32, dace.float32]
 datatype = dace.float64
 
 # Dataset sizes
@@ -26,8 +25,8 @@ def init_array(L, x, b, n):
             L[i, j] = datatype(0)
 
 
-@dace.program(datatype[N, N], datatype[N], datatype[N])
-def trisolv(L, x, b):
+@dace.program
+def trisolv(L: datatype[N, N], x: datatype[N], b: datatype[N]):
     for i in range(0, N, 1):
 
         @dace.tasklet
@@ -51,5 +50,5 @@ def trisolv(L, x, b):
             out = in_x / in_L
 
 
-if __name__ == '__main__':
-    polybench.main(sizes, args, [(1, 'x')], init_array, trisolv)
+if __name__ == "__main__":
+    polybench.main(sizes, args, [(1, "x")], init_array, trisolv)

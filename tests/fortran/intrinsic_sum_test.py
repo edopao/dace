@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from dace.frontend.fortran import ast_transforms, fortran_parser
+from dace.frontend.fortran import fortran_parser
 
 
 def test_fortran_frontend_sum2loop_1d_without_offset():
@@ -174,7 +174,6 @@ def test_fortran_frontend_arr2loop_2d_offset():
 
 
 if __name__ == "__main__":
-
     test_fortran_frontend_sum2loop_1d_without_offset()
     test_fortran_frontend_sum2loop_1d_offset()
     test_fortran_frontend_arr2loop_2d()

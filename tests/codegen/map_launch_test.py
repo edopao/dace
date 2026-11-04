@@ -1,10 +1,10 @@
-from typing import Union
-import dace
-import numpy as np
 import copy
-import sys
 import time
+
+import numpy as np
 import pytest
+
+import dace
 
 try:
     import cupy as cp
@@ -13,17 +13,19 @@ except ImportError:
 
 
 def _make_sdfg(
-    lb: Union[str, int],
-    ub: Union[str, int],
+    lb: str | int,
+    ub: str | int,
     on_gpu: bool,
 ) -> tuple[dace.SDFG, dace.nodes.MapEntry]:
-    sdfg = dace.SDFG("map_test_" + ("gpu" if on_gpu else "cpu") + f"_{int(time.time())}")
+    # The four CPU tests here share this name, and at second resolution two
+    # of them land in the same build folder and clobber each other's build when run in parallel.
+    sdfg = dace.SDFG("map_test_" + ("gpu" if on_gpu else "cpu") + f"_{time.time_ns()}")
     state = sdfg.add_state(is_start_block=True)
 
     for name in ["i0", "o0"]:
         sdfg.add_array(
             name,
-            shape=(10, ),
+            shape=(10,),
             dtype=dace.float64,
             transient=False,
         )
@@ -56,8 +58,8 @@ def _make_sdfg(
 
 
 def _run_test(
-    lb: Union[str, int],
-    ub: Union[str, int],
+    lb: str | int,
+    ub: str | int,
     on_gpu: bool,
     **kwargs,
 ):
@@ -83,7 +85,8 @@ def _run_test(
 
 
 def test_launch_cpu_zero_sized_map():
-    _run_test(1, 1, on_gpu=False)
+    with pytest.warns(match="zero or negative sized range"):
+        _run_test(1, 1, on_gpu=False)
 
 
 def test_launch_cpu_sym_zero_sized_map():
@@ -91,7 +94,8 @@ def test_launch_cpu_sym_zero_sized_map():
 
 
 def test_launch_cpu_negative_sized_map():
-    _run_test(1, 0, on_gpu=False)
+    with pytest.warns(match="zero or negative sized range"):
+        _run_test(1, 0, on_gpu=False)
 
 
 def test_launch_cpu_sym_negative_sized_map():

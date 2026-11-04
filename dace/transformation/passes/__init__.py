@@ -7,10 +7,13 @@ from .dead_state_elimination import DeadStateElimination
 from .full_map_fusion import FullMapFusion
 from .fusion_inline import FuseStates, InlineSDFGs
 from .loop_local_memory_reduction import LoopLocalMemoryReduction
+from .memlet_access_policies import AssignLoopCursors
+from .memlet_access_policy_lowering import LowerMemletAccessPolicies
 from .optional_arrays import OptionalArrayInference
 from .pattern_matching import PatternMatchAndApply, PatternMatchAndApplyRepeated, PatternApplyOnceEverywhere
 from .prune_symbols import RemoveUnusedSymbols
 from .scalar_to_symbol import ScalarToSymbolPromotion
+from .length_one_array_scalar_conversion import ConvertLengthOneArraysToScalars, ConvertScalarsToLengthOneArrays
 from .simplify import SimplifyPass
 from .symbol_propagation import SymbolPropagation
 from .transient_reuse import TransientReuse

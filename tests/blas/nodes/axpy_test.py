@@ -2,20 +2,12 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 
 import numpy as np
-import pytest
-
-import argparse
 import scipy
-import random
 
 import dace
-from dace.memlet import Memlet
-
-import dace.libraries.blas as blas
-from dace.transformation.interstate import InlineSDFG
-from dace.transformation.dataflow import StreamingMemory
-
+from dace.libraries import blas
 from dace.libraries.standard.memory import aligned_ndarray
+from dace.memlet import Memlet
 
 
 def run_test(configs, target):
@@ -23,7 +15,6 @@ def run_test(configs, target):
     n = int(1 << 13)
 
     for i, config in enumerate(configs):
-
         a, veclen, dtype = config
 
         x = aligned_ndarray(np.random.uniform(0, 100, n).astype(dtype.type), alignment=256)
@@ -37,8 +28,7 @@ def run_test(configs, target):
         sdfg = pure_graph(veclen, dtype, "pure", i)
         program = sdfg.compile()
 
-        with dace.config.set_temporary('compiler', 'allow_view_arguments', value=True):
-
+        with dace.config.set_temporary("compiler", "allow_view_arguments", value=True):
             program(x=x, y=y, a=a, n=np.int32(n))
             ref_norm = np.linalg.norm(y - ref_result) / n
 

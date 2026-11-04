@@ -1,15 +1,11 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import dace
-from dace.transformation.subgraph import SubgraphFusion
-import dace.transformation.subgraph.helpers as helpers
-from dace.sdfg.graph import SubgraphView
-import dace.sdfg.nodes as nodes
 import numpy as np
-from typing import List, Union
 import pytest
 from util import fusion
 
-N = dace.symbol('N')
+import dace
+
+N = dace.symbol("N")
 
 
 @dace.program
@@ -52,5 +48,5 @@ def test():
     assert np.allclose(C1, C2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test()

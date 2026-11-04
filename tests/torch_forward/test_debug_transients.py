@@ -4,7 +4,6 @@ import pytest
 pytest.importorskip("torch", reason="PyTorch not installed. Please install with: pip install dace[ml]")
 import torch
 from torch import nn
-import numpy as np
 
 import dace
 from tests.utils import torch_tensors_close
@@ -12,7 +11,6 @@ from tests.utils import torch_tensors_close
 
 @dace.ml.module(debug_transients=True, sdfg_name="test_debug_transients")
 class Module(nn.Module):
-
     def forward(self, x):
         y = x + 3
         return y * 5

@@ -1,12 +1,12 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-""" Contains classes that implement the trivial-map-elimination transformation. """
+"""Contains classes that implement the trivial-map-elimination transformation."""
 
 import dace
+from dace.memlet import Memlet
+from dace.properties import make_properties
 from dace.sdfg import nodes
 from dace.sdfg import utils as sdutil
 from dace.transformation import transformation
-from dace.properties import make_properties
-from dace.memlet import Memlet
 
 
 @make_properties
@@ -37,8 +37,9 @@ class TrivialMapElimination(transformation.SingleStateTransformation):
             return False
         if not any(r[0] == r[1] for r in map_entry.map.range):
             return False
-        if (map_entry.map.get_param_num()) == 1 and (any(not e.dst_conn.startswith("IN_")
-                                                         for e in graph.in_edges(map_entry) if not e.data.is_empty())):
+        if (map_entry.map.get_param_num()) == 1 and (
+            any(not e.dst_conn.startswith("IN_") for e in graph.in_edges(map_entry) if not e.data.is_empty())
+        ):
             # There is only one map parameter and there are dynamic map ranges, this can not be resolved.
             return False
         return True
@@ -78,6 +79,12 @@ class TrivialMapElimination(transformation.SingleStateTransformation):
     def remove_empty_map(self, graph, sdfg):
         map_entry = self.map_entry
         map_exit = graph.exit_node(map_entry)
+        # The map orders its body after every input and before every output, also where only an empty edge carries
+        # that order. Collected before the map's edges go; a nested scope is ordered at its entry and exit.
+        inputs = [e.src for e in graph.in_edges(map_entry)]
+        outputs = [e.dst for e in graph.out_edges(map_exit)]
+        heads = [e.dst for e in graph.out_edges(map_entry) if e.dst is not map_exit]
+        tails = [e.src for e in graph.in_edges(map_exit) if e.src is not map_entry]
 
         # Redirect map entry's out edges
         write_only_map = True
@@ -106,3 +113,7 @@ class TrivialMapElimination(transformation.SingleStateTransformation):
 
         # Remove map
         graph.remove_nodes_from([map_entry, map_exit])
+        for src, dst in [(i, h) for i in inputs for h in heads] + [(t, o) for t in tails for o in outputs]:
+            # Also skips a repeated pair: an input feeding several connectors appears once per edge
+            if not graph.edges_between(src, dst):
+                graph.add_edge(src, None, dst, None, Memlet())

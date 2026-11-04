@@ -1,12 +1,12 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import math
 import numpy as np
-import dace
 import polybench
 
-N = dace.symbol('N')
+import dace
 
-#datatypes = [dace.float64, dace.int32, dace.float32]
+N = dace.symbol("N")
+
+# datatypes = [dace.float64, dace.int32, dace.float32]
 datatype = dace.float64
 
 # Dataset sizes
@@ -27,8 +27,8 @@ def init_array(A, n):
     A[:] = np.dot(A, np.transpose(A))
 
 
-@dace.program(datatype[N, N])
-def lu(A):
+@dace.program
+def lu(A: datatype[N, N]):
     for i in range(0, N, 1):
         for j in range(0, i, 1):
 
@@ -56,5 +56,5 @@ def lu(A):
                 out = -i_in * j_in
 
 
-if __name__ == '__main__':
-    polybench.main(sizes, args, [(0, 'A')], init_array, lu)
+if __name__ == "__main__":
+    polybench.main(sizes, args, [(0, "A")], init_array, lu)

@@ -1,5 +1,3 @@
-import numpy as np
-
 import dace
 
 
@@ -24,7 +22,7 @@ def test_numpy_bool_input():
     assert result[0]
 
     # test numpy.bool (which is just bool)
-    result = sdfg(in_bool=bool(True))
+    result = sdfg(in_bool=True)
     assert result[0]
 
 

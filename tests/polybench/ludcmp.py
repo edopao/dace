@@ -1,12 +1,12 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-import math
-import dace
-import polybench
 import numpy as np
+import polybench
 
-N = dace.symbol('N')
+import dace
 
-#datatypes = [dace.float64, dace.int32, dace.float32]
+N = dace.symbol("N")
+
+# datatypes = [dace.float64, dace.int32, dace.float32]
 datatype = dace.float64
 
 # Dataset sizes
@@ -33,8 +33,8 @@ def init_array(A, b, x, y, n):
     A[:] = np.dot(A, np.transpose(A))
 
 
-@dace.program(datatype[N, N], datatype[N], datatype[N], datatype[N])
-def ludcmp(A, b, x, y):
+@dace.program
+def ludcmp(A: datatype[N, N], b: datatype[N], x: datatype[N], y: datatype[N]):
     w = dace.define_local([1], datatype)
 
     for i in range(0, N, 1):
@@ -111,7 +111,7 @@ def ludcmp(A, b, x, y):
             out = in_y
 
         @dace.map
-        def set_w4(j: _[i + 1:N]):
+        def set_w4(j: _[i + 1 : N]):
             in_A << A[i, j]
             in_x << x[j]
             out >> w(1, lambda x, y: x + y)
@@ -125,5 +125,5 @@ def ludcmp(A, b, x, y):
             out = in_w / in_A
 
 
-if __name__ == '__main__':
-    polybench.main(sizes, args, [(2, 'x')], init_array, ludcmp)
+if __name__ == "__main__":
+    polybench.main(sizes, args, [(2, "x")], init_array, ludcmp)

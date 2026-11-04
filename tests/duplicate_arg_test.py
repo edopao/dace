@@ -1,10 +1,9 @@
 # Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
-from __future__ import print_function
-
-import dace
 import numpy as np
 
-N = dace.symbol('N')
+import dace
+
+N = dace.symbol("N")
 
 
 @dace.program

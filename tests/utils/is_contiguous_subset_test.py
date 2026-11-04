@@ -1,15 +1,14 @@
 # Copyright 2019-2025 ETH Zurich and the DaCe authors. All rights reserved.
 
 import dace
-import pytest
 import dace.subsets
 
 
 # Helper function
 def create_array(shape, strides):
     """Helper to create a dace.data.Array with specific strides"""
-    sdfg = dace.SDFG('test_sdfg')
-    name, array = sdfg.add_array(name='test_array', shape=shape, dtype=dace.float64, strides=strides)
+    sdfg = dace.SDFG("test_sdfg")
+    name, array = sdfg.add_array(name="test_array", shape=shape, dtype=dace.float64, strides=strides)
     return array
 
 
@@ -164,7 +163,7 @@ def test_c_2d_partial_first_full_second():
 
 def test_1d_full_range():
     """Test 1D array with full range - should be contiguous"""
-    array = create_array((100, ), (1, ))
+    array = create_array((100,), (1,))
     subset = create_subset([(0, 99, 1)])
     result = subset.is_contiguous_subset(array)
     assert result is True
@@ -172,7 +171,7 @@ def test_1d_full_range():
 
 def test_1d_partial_range():
     """Test 1D array with partial range - should be contiguous"""
-    array = create_array((100, ), (1, ))
+    array = create_array((100,), (1,))
     subset = create_subset([(25, 74, 1)])
     result = subset.is_contiguous_subset(array)
     assert result is True
@@ -233,6 +232,64 @@ def test_non_standard_strides_returns_false():
 
     result = subset.is_contiguous_subset(array)
     assert result is False
+
+
+def test_1d_slice():
+    """Test a non packed 1D slice."""
+    array = create_array((10, 10, 10), (1, 20, 400))
+    subset_base = [(3, 8, 1), (4, 4, 1), (5, 5, 1)]
+
+    for res, sbs_func in [
+        (True, lambda x: x),  # a[3:9, 4, 5]
+        (False, reversed),  # a[5, 4, 3:9]
+        (False, lambda x: (x[0], (4, 5, 1), x[2])),  # a[3:9, 4:6, 5]
+    ]:
+        subset = create_subset(sbs_func(subset_base))
+        result = subset.is_contiguous_subset(array)
+        assert result is res
+
+
+def test_padded_single_element_and_padded_rows():
+    """A padded (non-packed) array: one element is contiguous, so are runs that do not cross the padding."""
+    array = create_array((10, 20), (24, 1))
+    assert create_subset([(3, 3, 1), (7, 7, 1)]).is_contiguous_subset(array) is True
+    assert create_subset([(3, 3, 1), (0, 19, 1)]).is_contiguous_subset(array) is True
+    assert create_subset([(3, 4, 1), (0, 19, 1)]).is_contiguous_subset(array) is False
+    # The full row pitch of a padded array is one run again.
+    assert create_subset([(3, 4, 1), (0, 23, 1)]).is_contiguous_subset(create_array((10, 24), (24, 1))) is True
+
+
+def test_permuted_layout():
+    """Contiguity does not depend on the order of the dimensions in memory."""
+    array = create_array((10, 20, 30), (30, 300, 1))  # dimension 2 fastest, then 0, then 1
+    assert create_subset([(0, 9, 1), (4, 6, 1), (0, 29, 1)]).is_contiguous_subset(array) is True
+    assert create_subset([(0, 8, 1), (4, 6, 1), (0, 29, 1)]).is_contiguous_subset(array) is False
+
+
+def test_steps():
+    """A step on a dimension with one element does not matter; a step on a wider one breaks the run, unless the
+    stride is chained to it."""
+    array = create_array((10, 20), (20, 1))
+    assert create_subset([(3, 3, 2), (0, 19, 1)]).is_contiguous_subset(array) is True
+    assert create_subset([(0, 9, 1), (0, 19, 2)]).is_contiguous_subset(array) is False
+    assert dace.subsets.contiguous_run_length([10, 20], [40, 2]) is None
+    assert dace.subsets.contiguous_run_length([10, 20], [20, 1]) == 200
+
+
+def test_overlapping_strides_are_not_contiguous():
+    """The span of these strides equals the volume (8), but addresses 3 and 4 are missing and 1 repeats."""
+    assert dace.subsets.contiguous_run_length([2, 2, 2], [1, 1, 5]) is None
+    assert dace.subsets.contiguous_run_length([2, 2, 2], [1, 2, 4]) == 8
+
+
+def test_symbolic_strides_and_tiles():
+    """Symbolic layouts are contiguous when the strides chain provably; tiled ranges never are."""
+    N, M = dace.symbol("N"), dace.symbol("M")
+    array = create_array((N, M), (M, 1))
+    assert create_subset([(0, 1, 1), (0, M - 1, 1)]).is_contiguous_subset(array) is True
+    assert create_subset([(0, 1, 1), (1, M - 1, 1)]).is_contiguous_subset(array) is False
+    assert create_subset([(0, 1, 1), (0, M - 1, 1)]).contiguous_length(array.strides) == 2 * M
+    assert create_subset([(5, 5, 1), (0, 1, 1, 2)]).is_contiguous_subset(array) is False
 
 
 if __name__ == "__main__":
